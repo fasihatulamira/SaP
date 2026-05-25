@@ -14,7 +14,6 @@ db_config = {
     "database": os.getenv("DB_NAME")
 }
 
-
 try:
     # Use connection pool for Flask web application efficiency
     db_pool = pooling.MySQLConnectionPool(
