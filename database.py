@@ -9,10 +9,11 @@ load_dotenv()
 db_config = {
     "host": os.getenv("DB_HOST", "localhost"),
     "port": int(os.getenv("DB_PORT", 3306)),
-    "user": os.getenv("DB_USER", "root"),
-    "password": os.getenv("DB_PASSWORD", "Ceah_3007"),
-    "database": os.getenv("DB_NAME", "listmap")
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASSWORD"),
+    "database": os.getenv("DB_NAME")
 }
+
 
 try:
     # Use connection pool for Flask web application efficiency
