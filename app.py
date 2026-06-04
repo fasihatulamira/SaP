@@ -52,15 +52,20 @@ def get_records():
         # Get query parameters for Land Use
         land_search = request.args.get("land_search", None)
         
+        # Get query parameters for Sjungu
+        sjungu_search = request.args.get("sjungu_search", None)
+        
         # Query data from database helper
         topography_list = database.get_topography_data(topo_search, topo_year)
         dted_list = database.get_dted_data(dted_search, dted_level)
         landused_list = database.get_landused_data(land_search)
+        sjungu_list = database.get_sjungu_data(sjungu_search)
         
         return jsonify({
             "topography": topography_list,
             "dted": dted_list,
-            "landused": landused_list
+            "landused": landused_list,
+            "sjungu": sjungu_list
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500

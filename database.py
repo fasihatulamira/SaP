@@ -130,3 +130,28 @@ def get_filter_options():
         "release_years": years,
         "dted_levels": levels
     }
+
+def get_sjungu_data(search_query=None):
+    """
+    Fetches records from sjung table.
+    Filters by search_query (matching sheetNum or sheetName) if provided.
+    """
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    query = "SELECT sheetNum, sheetName, sheetScale FROM sjung WHERE 1=1"
+    params = []
+    
+    if search_query:
+        query += " AND (sheetNum LIKE %s OR sheetName LIKE %s)"
+        params.append(f"%{search_query}%")
+        params.append(f"%{search_query}%")
+        
+    query += " ORDER BY sheetNum ASC"
+    
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return rows
+

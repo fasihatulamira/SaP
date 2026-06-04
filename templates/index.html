@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SaP ListMap Portal - Interactive Map Selection & Print System</title>
+    <title>Direktori Lembaran & Jenis Peta</title>
     
     <!-- CSS Dependencies -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
@@ -14,27 +14,27 @@
     <!-- Client-side PDF Engine (html2pdf.js) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
-<body>
-
+<body class="light-theme">
+ 
     <!-- Header Navigation -->
     <header>
         <div class="brand">
             <div class="brand-icon"><i class="fas fa-layer-group"></i></div>
             <div>
-                <h1>SaP ListMap</h1>
+                <h1>Direktori Lembaran & Jenis Peta</h1>
                 <p style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">DATA SELECTION & EXPORT CENTER</p>
             </div>
         </div>
         <div class="header-controls">
             <!-- Customizable Title for PDF -->
-            <div class="search-input-wrapper" style="min-width: 320px; display: flex; align-items: center; gap: 0.5rem;">
+            <div class="search-input-wrapper" style="min-width: 480px; display: flex; align-items: center; gap: 0.5rem;">
                 <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; white-space: nowrap;">Report Title:</span>
                 <input type="text" id="doc-title-input" class="search-input" value="SaP LISTMAP DATA SPECIFICATION REPORT" style="padding: 0.5rem 0.75rem; font-size: 0.85rem; height: auto;">
             </div>
             
             <!-- Theme Toggle -->
             <button id="theme-toggle" class="btn-theme-toggle" title="Toggle Light/Dark Theme">
-                <i class="fas fa-sun"></i>
+                <i class="fas fa-moon"></i>
             </button>
         </div>
     </header>
@@ -50,11 +50,14 @@
                 <button class="tab-btn active" data-tab="topography">
                     <i class="fas fa-mountain"></i> Topography
                 </button>
+                <button class="tab-btn" data-tab="landused">
+                    <i class="fas fa-tree"></i> Land Used
+                </button>
                 <button class="tab-btn" data-tab="dted">
                     <i class="fas fa-map-marked-alt"></i> DTED Elevation
                 </button>
-                <button class="tab-btn" data-tab="landused">
-                    <i class="fas fa-tree"></i> Land Used
+                <button class="tab-btn" data-tab="sjungu">
+                    <i class="fas fa-map"></i> Sjungu
                 </button>
             </nav>
 
@@ -103,7 +106,47 @@
                 </div>
             </div>
 
-            <!-- CATEGORY 2: DTED Selector Pane -->
+            <!-- CATEGORY 2: Land Used Selector Pane -->
+            <div id="landused-content" class="category-content">
+                <div class="table-controls">
+                    <div class="search-input-wrapper">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" id="land-search" class="search-input" placeholder="Search land use description...">
+                    </div>
+                </div>
+
+                <div class="select-all-bar">
+                    <button class="btn btn-outline" id="land-select-all">
+                        <i class="far fa-square"></i> Select Page
+                    </button>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">Category 2: Land Coverage Classification</span>
+                </div>
+
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 8%;">Select</th>
+                                <th style="width: 22%;">Land Used ID</th>
+                                <th style="width: 70%;">Category Name / Details</th>
+                            </tr>
+                        </thead>
+                        <tbody id="land-table-body">
+                            <!-- Injected dynamically via app.js -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="pagination">
+                    <div class="pagination-info" id="land-page-info">Loading...</div>
+                    <div class="pagination-controls">
+                        <button class="btn btn-secondary" id="land-prev" style="padding: 0.4rem 0.8rem;"><i class="fas fa-chevron-left"></i></button>
+                        <button class="btn btn-secondary" id="land-next" style="padding: 0.4rem 0.8rem;"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CATEGORY 3: DTED Selector Pane -->
             <div id="dted-content" class="category-content">
                 <div class="table-controls">
                     <div class="search-input-wrapper">
@@ -119,7 +162,7 @@
                     <button class="btn btn-outline" id="dted-select-all">
                         <i class="far fa-square"></i> Select Page
                     </button>
-                    <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">Category 2: Elevation Model Database</span>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">Category 3: Elevation Model Database</span>
                 </div>
 
                 <div class="table-wrapper">
@@ -146,20 +189,20 @@
                 </div>
             </div>
 
-            <!-- CATEGORY 3: Land Used Selector Pane -->
-            <div id="landused-content" class="category-content">
+            <!-- CATEGORY 4: Sjungu Selector Pane -->
+            <div id="sjungu-content" class="category-content">
                 <div class="table-controls">
                     <div class="search-input-wrapper">
                         <i class="fas fa-search search-icon"></i>
-                        <input type="text" id="land-search" class="search-input" placeholder="Search land use description...">
+                        <input type="text" id="sjungu-search" class="search-input" placeholder="Search sheet number or name...">
                     </div>
                 </div>
 
                 <div class="select-all-bar">
-                    <button class="btn btn-outline" id="land-select-all">
+                    <button class="btn btn-outline" id="sjungu-select-all">
                         <i class="far fa-square"></i> Select Page
                     </button>
-                    <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">Category 3: Land Coverage Classification</span>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">Category 4: Sjungu Database</span>
                 </div>
 
                 <div class="table-wrapper">
@@ -167,21 +210,22 @@
                         <thead>
                             <tr>
                                 <th style="width: 8%;">Select</th>
-                                <th style="width: 22%;">Land Used ID</th>
-                                <th style="width: 70%;">Category Name / Details</th>
+                                <th style="width: 32%;">Sheet Number</th>
+                                <th style="width: 40%;">Sheet Name</th>
+                                <th style="width: 20%;">Scale</th>
                             </tr>
                         </thead>
-                        <tbody id="land-table-body">
+                        <tbody id="sjungu-table-body">
                             <!-- Injected dynamically via app.js -->
                         </tbody>
                     </table>
                 </div>
 
                 <div class="pagination">
-                    <div class="pagination-info" id="land-page-info">Loading...</div>
+                    <div class="pagination-info" id="sjungu-page-info">Loading...</div>
                     <div class="pagination-controls">
-                        <button class="btn btn-secondary" id="land-prev" style="padding: 0.4rem 0.8rem;"><i class="fas fa-chevron-left"></i></button>
-                        <button class="btn btn-secondary" id="land-next" style="padding: 0.4rem 0.8rem;"><i class="fas fa-chevron-right"></i></button>
+                        <button class="btn btn-secondary" id="sjungu-prev" style="padding: 0.4rem 0.8rem;"><i class="fas fa-chevron-left"></i></button>
+                        <button class="btn btn-secondary" id="sjungu-next" style="padding: 0.4rem 0.8rem;"><i class="fas fa-chevron-right"></i></button>
                     </div>
                 </div>
             </div>

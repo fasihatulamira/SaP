@@ -3,24 +3,28 @@ const state = {
     records: {
         topography: [],
         dted: [],
-        landused: []
+        landused: [],
+        sjungu: []
     },
     selected: {
         topography: new Map(), // key: sheetNum, value: rowData
         dted: new Map(),       // key: id_name, value: rowData
-        landused: new Map()    // key: landused_id, value: rowData
+        landused: new Map(),   // key: landused_id, value: rowData
+        sjungu: new Map()      // key: sheetNum, value: rowData
     },
     filters: {
         topo_search: "",
         topo_year: "",
         dted_search: "",
         dted_level: "",
-        land_search: ""
+        land_search: "",
+        sjungu_search: ""
     },
     pagination: {
         topography: { page: 1, limit: 8 },
         dted: { page: 1, limit: 8 },
-        landused: { page: 1, limit: 8 }
+        landused: { page: 1, limit: 8 },
+        sjungu: { page: 1, limit: 8 }
     },
     activeTab: "topography"
 };
@@ -57,6 +61,14 @@ const DOM = {
     landPageInfo: document.getElementById("land-page-info"),
     landSelectAll: document.getElementById("land-select-all"),
     
+    // Sjungu DOM
+    sjunguSearch: document.getElementById("sjungu-search"),
+    sjunguTableBody: document.getElementById("sjungu-table-body"),
+    sjunguPrev: document.getElementById("sjungu-prev"),
+    sjunguNext: document.getElementById("sjungu-next"),
+    sjunguPageInfo: document.getElementById("sjungu-page-info"),
+    sjunguSelectAll: document.getElementById("sjungu-select-all"),
+    
     // Output DOM
     docContent: document.getElementById("doc-content"),
     docDate: document.getElementById("doc-date"),
@@ -77,7 +89,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Theme Management
 function initTheme() {
-    const savedTheme = localStorage.getItem("theme") || "dark";
+    const savedTheme = localStorage.getItem("theme") || "light";
     if (savedTheme === "light") {
         document.body.classList.add("light-theme");
         DOM.themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
@@ -128,7 +140,8 @@ async function fetchRecords() {
             topo_year: state.filters.topo_year,
             dted_search: state.filters.dted_search,
             dted_level: state.filters.dted_level,
-            land_search: state.filters.land_search
+            land_search: state.filters.land_search,
+            sjungu_search: state.filters.sjungu_search
         });
         
         const response = await fetch(`/api/records?${params.toString()}`);
@@ -142,11 +155,13 @@ async function fetchRecords() {
         state.records.topography = data.topography;
         state.records.dted = data.dted;
         state.records.landused = data.landused;
+        state.records.sjungu = data.sjungu;
         
         // Reset to first page when filtering
         state.pagination.topography.page = 1;
         state.pagination.dted.page = 1;
         state.pagination.landused.page = 1;
+        state.pagination.sjungu.page = 1;
         
         renderAllTables();
     } catch (e) {
@@ -159,6 +174,7 @@ function renderAllTables() {
     renderTopographyTable();
     renderDtedTable();
     renderLandusedTable();
+    renderSjunguTable();
     renderDocumentPreview();
 }
 
@@ -304,6 +320,53 @@ function renderLandusedTable() {
     updateSelectAllCheckboxState("landused", paginatedItems);
 }
 
+// Render Sjungu Table
+function renderSjunguTable() {
+    const list = state.records.sjungu;
+    const { page, limit } = state.pagination.sjungu;
+    const start = (page - 1) * limit;
+    const paginatedItems = list.slice(start, start + limit);
+    
+    DOM.sjunguTableBody.innerHTML = "";
+    
+    if (paginatedItems.length === 0) {
+        DOM.sjunguTableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No Sjungu records found</td></tr>`;
+        DOM.sjunguPageInfo.textContent = "0 of 0";
+        return;
+    }
+    
+    paginatedItems.forEach(row => {
+        const isSelected = state.selected.sjungu.has(row.sheetNum);
+        const tr = document.createElement("tr");
+        if (isSelected) tr.classList.add("selected");
+        
+        tr.innerHTML = `
+            <td>
+                <div class="custom-checkbox">
+                    <i class="fas fa-check"></i>
+                </div>
+            </td>
+            <td style="font-weight: 600; color: var(--primary-light);">${row.sheetNum}</td>
+            <td>${row.sheetName}</td>
+            <td>${row.sheetScale}</td>
+        `;
+        
+        tr.addEventListener("click", () => {
+            toggleSelection("sjungu", row.sheetNum, row);
+            renderSjunguTable();
+        });
+        
+        DOM.sjunguTableBody.appendChild(tr);
+    });
+    
+    const totalPages = Math.ceil(list.length / limit);
+    DOM.sjunguPageInfo.textContent = `Page ${page} of ${totalPages || 1}`;
+    DOM.sjunguPrev.disabled = page === 1;
+    DOM.sjunguNext.disabled = page === totalPages || totalPages === 0;
+    
+    updateSelectAllCheckboxState("sjungu", paginatedItems);
+}
+
 // Toggle row selection
 function toggleSelection(category, id, rowData) {
     const catMap = state.selected[category];
@@ -323,7 +386,7 @@ function toggleSelectAll(category) {
     const paginatedItems = list.slice(start, start + limit);
     
     const catMap = state.selected[category];
-    const keyProp = category === "topography" ? "sheetNum" : (category === "dted" ? "id_name" : "landused_id");
+    const keyProp = category === "topography" ? "sheetNum" : (category === "dted" ? "id_name" : (category === "sjungu" ? "sheetNum" : "landused_id"));
     
     // Check if all paginated items are already selected
     const allSelected = paginatedItems.every(row => catMap.has(row[keyProp]));
@@ -342,8 +405,8 @@ function toggleSelectAll(category) {
 // Helper to keep Select All checkbox icons accurately showing current page state
 function updateSelectAllCheckboxState(category, paginatedItems) {
     const catMap = state.selected[category];
-    const keyProp = category === "topography" ? "sheetNum" : (category === "dted" ? "id_name" : "landused_id");
-    const domKey = category === "topography" ? "topoSelectAll" : (category === "dted" ? "dtedSelectAll" : "landSelectAll");
+    const keyProp = category === "topography" ? "sheetNum" : (category === "dted" ? "id_name" : (category === "sjungu" ? "sheetNum" : "landused_id"));
+    const domKey = category === "topography" ? "topoSelectAll" : (category === "dted" ? "dtedSelectAll" : (category === "sjungu" ? "sjunguSelectAll" : "landSelectAll"));
     const checkAllBtn = DOM[domKey];
     
     if (paginatedItems.length === 0) {
@@ -368,6 +431,7 @@ function clearAllSelection() {
     state.selected.topography.clear();
     state.selected.dted.clear();
     state.selected.landused.clear();
+    state.selected.sjungu.clear();
     renderAllTables();
 }
 
@@ -376,8 +440,9 @@ function renderDocumentPreview() {
     const selectedTopo = Array.from(state.selected.topography.values());
     const selectedDted = Array.from(state.selected.dted.values());
     const selectedLand = Array.from(state.selected.landused.values());
+    const selectedSjungu = Array.from(state.selected.sjungu.values());
     
-    const hasItems = selectedTopo.length > 0 || selectedDted.length > 0 || selectedLand.length > 0;
+    const hasItems = selectedTopo.length > 0 || selectedDted.length > 0 || selectedLand.length > 0 || selectedSjungu.length > 0;
     
     if (!hasItems) {
         DOM.docContent.innerHTML = `
@@ -399,58 +464,42 @@ function renderDocumentPreview() {
     
     let html = "";
     
-    // Render Category 1: Topography Section
-    if (selectedTopo.length > 0) {
+    // Render Category 1: Topography & Sjungu Section (Combined)
+    if (selectedTopo.length > 0 || selectedSjungu.length > 0) {
+        const totalCount = selectedTopo.length + selectedSjungu.length;
         html += `
             <div class="doc-section">
                 <div class="doc-section-title">
-                    <span>1. TOPOGRAPHY RECORDS</span>
-                    <span class="doc-section-count">${selectedTopo.length} item(s)</span>
+                    <span>1. TOPOGRAPHY & SJUNGU RECORDS</span>
+                    <span class="doc-section-count">${totalCount} item(s)</span>
                 </div>
                 <table class="doc-table">
                     <thead>
                         <tr>
-                            <th style="width: 25%;">Sheet Number</th>
-                            <th style="width: 45%;">Sheet Name</th>
+                            <th style="width: 8%; text-align: center;">No.</th>
+                            <th style="width: 22%;">Sheet Number</th>
+                            <th style="width: 40%;">Sheet Name</th>
                             <th style="width: 15%;">Scale</th>
                             <th style="width: 15%;">Year</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${selectedTopo.map(row => `
+                        ${selectedTopo.map((row, idx) => `
                             <tr>
+                                <td style="text-align: center; font-weight: 600; color: #64748b;">${idx + 1}.</td>
                                 <td style="font-weight: 700; color: #1e3a8a;">${row.sheetNum}</td>
                                 <td>${row.sheetName}</td>
                                 <td>${row.sheetScale}</td>
                                 <td>${row.release_year}</td>
                             </tr>
                         `).join("")}
-                    </tbody>
-                </table>
-            </div>
-        `;
-    }
-    
-    // Render Category 2: DTED Section
-    if (selectedDted.length > 0) {
-        html += `
-            <div class="doc-section" style="margin-top: 1.5rem;">
-                <div class="doc-section-title">
-                    <span>2. DIGITAL TERRAIN ELEVATION DATA (DTED)</span>
-                    <span class="doc-section-count">${selectedDted.length} item(s)</span>
-                </div>
-                <table class="doc-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 80%;">Elevation ID / File Name</th>
-                            <th style="width: 20%;">DTED Level</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${selectedDted.map(row => `
+                        ${selectedSjungu.map((row, idx) => `
                             <tr>
-                                <td style="font-family: monospace; font-size: 0.75rem;">${row.id_name}</td>
-                                <td style="font-weight: 700;">Level ${row.level}</td>
+                                <td style="text-align: center; font-weight: 600; color: #64748b;">${idx + 1}.</td>
+                                <td style="font-weight: 700; color: #1e3a8a;">${row.sheetNum}</td>
+                                <td>${row.sheetName}</td>
+                                <td>${row.sheetScale}</td>
+                                <td></td>
                             </tr>
                         `).join("")}
                     </tbody>
@@ -459,12 +508,12 @@ function renderDocumentPreview() {
         `;
     }
     
-    // Render Category 3: Land Used Section
+    // Render Category 2: Land Used Section
     if (selectedLand.length > 0) {
         html += `
             <div class="doc-section" style="margin-top: 1.5rem;">
                 <div class="doc-section-title">
-                    <span>3. LAND USE CATEGORIES</span>
+                    <span>2. LAND USE CATEGORIES</span>
                     <span class="doc-section-count">${selectedLand.length} item(s)</span>
                 </div>
                 <table class="doc-table">
@@ -479,6 +528,34 @@ function renderDocumentPreview() {
                             <tr>
                                 <td style="font-weight: 700;">${row.landused_id}</td>
                                 <td>${row.category}</td>
+                            </tr>
+                        `).join("")}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    // Render Category 3: DTED Section
+    if (selectedDted.length > 0) {
+        html += `
+            <div class="doc-section" style="margin-top: 1.5rem;">
+                <div class="doc-section-title">
+                    <span>3. DIGITAL TERRAIN ELEVATION DATA (DTED)</span>
+                    <span class="doc-section-count">${selectedDted.length} item(s)</span>
+                </div>
+                <table class="doc-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 80%;">Elevation ID / File Name</th>
+                            <th style="width: 20%;">DTED Level</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${selectedDted.map(row => `
+                            <tr>
+                                <td style="font-family: monospace; font-size: 0.75rem;">${row.id_name}</td>
+                                <td style="font-weight: 700;">Level ${row.level}</td>
                             </tr>
                         `).join("")}
                     </tbody>
@@ -616,6 +693,28 @@ function setupEventListeners() {
         if (state.pagination.landused.page < maxPage) {
             state.pagination.landused.page++;
             renderLandusedTable();
+        }
+    });
+    
+    // Sjungu searches & filters
+    DOM.sjunguSearch.addEventListener("input", debounce(() => {
+        state.filters.sjungu_search = DOM.sjunguSearch.value;
+        fetchRecords();
+    }, 300));
+    
+    DOM.sjunguSelectAll.addEventListener("click", () => toggleSelectAll("sjungu"));
+    
+    DOM.sjunguPrev.addEventListener("click", () => {
+        if (state.pagination.sjungu.page > 1) {
+            state.pagination.sjungu.page--;
+            renderSjunguTable();
+        }
+    });
+    DOM.sjunguNext.addEventListener("click", () => {
+        const maxPage = Math.ceil(state.records.sjungu.length / state.pagination.sjungu.limit);
+        if (state.pagination.sjungu.page < maxPage) {
+            state.pagination.sjungu.page++;
+            renderSjunguTable();
         }
     });
     
