@@ -1,4 +1,9 @@
 // Application state
+const SELECTION_STORAGE_KEY = "sap_listmap_selections";
+const PAGE_SIZE_STORAGE_KEY = "sap_listmap_page_size";
+const PAGE_SIZE_OPTIONS = [8, 10, 15];
+const DEFAULT_PAGE_SIZE = 10;
+
 const state = {
     records: {
         topography: [],
@@ -7,10 +12,10 @@ const state = {
         sjungu: []
     },
     selected: {
-        topography: new Map(), // key: sheetNum, value: rowData
-        dted: new Map(),       // key: id_name, value: rowData
-        landused: new Map(),   // key: landused_id, value: rowData
-        sjungu: new Map()      // key: sheetNum, value: rowData
+        topography: new Map(),
+        dted: new Map(),
+        landused: new Map(),
+        sjungu: new Map()
     },
     filters: {
         topo_search: "",
@@ -21,21 +26,21 @@ const state = {
         sjungu_search: ""
     },
     pagination: {
-        topography: { page: 1, limit: 8 },
-        dted: { page: 1, limit: 8 },
-        landused: { page: 1, limit: 8 },
-        sjungu: { page: 1, limit: 8 }
+        topography: { page: 1, limit: 10, total: 0, totalPages: 1 },
+        dted: { page: 1, limit: 10, total: 0, totalPages: 1 },
+        landused: { page: 1, limit: 10, total: 0, totalPages: 1 },
+        sjungu: { page: 1, limit: 10, total: 0, totalPages: 1 }
     },
-    activeTab: "topography"
+    activeTab: "topography",
+    ui: { loading: false },
+    reportRef: null,
+    user: { username: "", role: "user" }
 };
 
-// DOM elements
 const DOM = {
     tabs: document.querySelectorAll(".tab-btn"),
     contents: document.querySelectorAll(".category-content"),
     themeToggle: document.getElementById("theme-toggle"),
-    
-    // Topography DOM
     topoSearch: document.getElementById("topo-search"),
     topoYear: document.getElementById("topo-year"),
     topoTableBody: document.getElementById("topo-table-body"),
@@ -43,8 +48,6 @@ const DOM = {
     topoNext: document.getElementById("topo-next"),
     topoPageInfo: document.getElementById("topo-page-info"),
     topoSelectAll: document.getElementById("topo-select-all"),
-    
-    // DTED DOM
     dtedSearch: document.getElementById("dted-search"),
     dtedLevel: document.getElementById("dted-level"),
     dtedTableBody: document.getElementById("dted-table-body"),
@@ -52,42 +55,388 @@ const DOM = {
     dtedNext: document.getElementById("dted-next"),
     dtedPageInfo: document.getElementById("dted-page-info"),
     dtedSelectAll: document.getElementById("dted-select-all"),
-    
-    // Land Used DOM
     landSearch: document.getElementById("land-search"),
     landTableBody: document.getElementById("land-table-body"),
     landPrev: document.getElementById("land-prev"),
     landNext: document.getElementById("land-next"),
     landPageInfo: document.getElementById("land-page-info"),
     landSelectAll: document.getElementById("land-select-all"),
-    
-    // Sjungu DOM
     sjunguSearch: document.getElementById("sjungu-search"),
     sjunguTableBody: document.getElementById("sjungu-table-body"),
     sjunguPrev: document.getElementById("sjungu-prev"),
     sjunguNext: document.getElementById("sjungu-next"),
     sjunguPageInfo: document.getElementById("sjungu-page-info"),
     sjunguSelectAll: document.getElementById("sjungu-select-all"),
-    
-    // Output DOM
     docContent: document.getElementById("doc-content"),
     docDate: document.getElementById("doc-date"),
     btnPrint: document.getElementById("btn-print"),
     btnPdf: document.getElementById("btn-pdf"),
+    btnXlsx: document.getElementById("btn-xlsx"),
+    btnAuditLog: document.getElementById("btn-audit-log"),
     btnClearSelection: document.getElementById("btn-clear-selection"),
-    docTitleInput: document.getElementById("doc-title-input")
+    docTitleInput: document.getElementById("doc-title-input"),
+    statusBanner: document.getElementById("status-banner"),
+    docRef: document.getElementById("doc-ref"),
+    docPageInfo: document.getElementById("doc-page-info"),
+    auditModal: document.getElementById("audit-modal"),
+    auditModalBackdrop: document.getElementById("audit-modal-backdrop"),
+    auditModalClose: document.getElementById("audit-modal-close"),
+    auditModalRefresh: document.getElementById("audit-modal-refresh"),
+    auditTableBody: document.getElementById("audit-table-body"),
+    pageSizeSelect: document.getElementById("page-size-select")
 };
 
-// Initialize Application
+const TABLE_CONFIG = {
+    topography: {
+        keyProp: "sheetNum",
+        tableBody: () => DOM.topoTableBody,
+        pageInfo: () => DOM.topoPageInfo,
+        prevBtn: () => DOM.topoPrev,
+        nextBtn: () => DOM.topoNext,
+        selectAllBtn: () => DOM.topoSelectAll,
+        colspan: 5,
+        emptyMessage: "No topography records found",
+        rowLabel: (row) => `Select topography sheet ${row.sheetNum}`,
+        columns: [
+            { style: "font-weight: 600; color: var(--primary-light);", value: (row) => row.sheetNum },
+            { value: (row) => row.sheetName },
+            { value: (row) => row.sheetScale },
+            { value: (row) => row.release_year }
+        ]
+    },
+    dted: {
+        keyProp: "id_name",
+        tableBody: () => DOM.dtedTableBody,
+        pageInfo: () => DOM.dtedPageInfo,
+        prevBtn: () => DOM.dtedPrev,
+        nextBtn: () => DOM.dtedNext,
+        selectAllBtn: () => DOM.dtedSelectAll,
+        colspan: 4,
+        emptyMessage: "No DTED records found",
+        rowLabel: (row) => `Select DTED file ${row.id_name}`,
+        columns: [
+            { listIndex: true, style: "text-align: center; font-weight: 600; color: var(--text-muted);" },
+            { style: "word-break: break-all;", value: (row) => row.id_name },
+            {
+                html: (row) => `<span class="badge" style="background: rgba(6, 182, 212, 0.15); color: var(--accent); padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 600;">Level ${escapeHtml(row.level)}</span>`
+            }
+        ]
+    },
+    landused: {
+        keyProp: "landused_id",
+        tableBody: () => DOM.landTableBody,
+        pageInfo: () => DOM.landPageInfo,
+        prevBtn: () => DOM.landPrev,
+        nextBtn: () => DOM.landNext,
+        selectAllBtn: () => DOM.landSelectAll,
+        colspan: 4,
+        emptyMessage: "No land use categories found",
+        rowLabel: (row) => `Select land use category ${row.category}`,
+        columns: [
+            { listIndex: true, style: "text-align: center; font-weight: 600; color: var(--text-muted);" },
+            { value: (row) => row.category },
+            { value: (row) => row.landused_id, style: "font-weight: 600; color: var(--primary-light);" }
+        ]
+    },
+    sjungu: {
+        keyProp: "sheetNum",
+        tableBody: () => DOM.sjunguTableBody,
+        pageInfo: () => DOM.sjunguPageInfo,
+        prevBtn: () => DOM.sjunguPrev,
+        nextBtn: () => DOM.sjunguNext,
+        selectAllBtn: () => DOM.sjunguSelectAll,
+        colspan: 4,
+        emptyMessage: "No Sjung records found",
+        rowLabel: (row) => `Select Sjung sheet ${row.sheetNum}`,
+        columns: [
+            { style: "font-weight: 600; color: var(--primary-light);", value: (row) => row.sheetNum },
+            { value: (row) => row.sheetName },
+            { value: (row) => row.sheetScale }
+        ]
+    }
+};
+
+function handleAuthFailure(response) {
+    if (response.status === 401) {
+        window.location.href = "/login?next=" + encodeURIComponent(window.location.pathname);
+        return true;
+    }
+    return false;
+}
+
+function escapeHtml(value) {
+    if (value === null || value === undefined) return "";
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
+function showStatusBanner(message, type = "error") {
+    if (!DOM.statusBanner) return;
+    DOM.statusBanner.className = `status-banner ${type}`;
+    DOM.statusBanner.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${escapeHtml(message)}`;
+    DOM.statusBanner.classList.remove("hidden");
+}
+
+function hideStatusBanner() {
+    if (!DOM.statusBanner) return;
+    DOM.statusBanner.classList.add("hidden");
+    DOM.statusBanner.textContent = "";
+}
+
+function setTableLoading(tableBody, colspan) {
+    tableBody.innerHTML = `<tr><td colspan="${colspan}" class="loading-row"><i class="fas fa-spinner fa-spin"></i> Loading records...</td></tr>`;
+}
+
+function setCategoryTableLoading(category) {
+    const config = TABLE_CONFIG[category];
+    setTableLoading(config.tableBody(), config.colspan);
+    config.pageInfo().textContent = "Loading...";
+}
+
+function renderCategoryError(category) {
+    const config = TABLE_CONFIG[category];
+    config.tableBody().innerHTML = `<tr><td colspan="${config.colspan}" style="text-align: center; color: var(--text-muted);">Unable to load records</td></tr>`;
+    config.pageInfo().textContent = "—";
+}
+
+function buildCategoryParams(category) {
+    const { page, limit } = state.pagination[category];
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+
+    if (category === "topography") {
+        if (state.filters.topo_search) params.set("search", state.filters.topo_search);
+        if (state.filters.topo_year) params.set("year", state.filters.topo_year);
+    } else if (category === "dted") {
+        if (state.filters.dted_search) params.set("search", state.filters.dted_search);
+        if (state.filters.dted_level) params.set("level", state.filters.dted_level);
+    } else if (category === "landused") {
+        if (state.filters.land_search) params.set("search", state.filters.land_search);
+    } else if (category === "sjungu") {
+        if (state.filters.sjungu_search) params.set("search", state.filters.sjungu_search);
+    }
+
+    return params;
+}
+
+async function fetchCategoryRecords(category, resetPage = false) {
+    if (!TABLE_CONFIG[category]) return;
+
+    if (resetPage) {
+        state.pagination[category].page = 1;
+    }
+
+    setCategoryTableLoading(category);
+    state.ui.loading = true;
+
+    try {
+        const params = buildCategoryParams(category);
+        const response = await fetch(`/api/records/${category}?${params.toString()}`);
+        if (handleAuthFailure(response)) return;
+
+        const data = await response.json();
+
+        if (!response.ok || data.error) {
+            showStatusBanner(data.error || "Failed to load records.", "error");
+            renderCategoryError(category);
+            return;
+        }
+
+        hideStatusBanner();
+
+        state.records[category] = data.items;
+        state.pagination[category].page = data.page;
+        state.pagination[category].limit = data.limit;
+        state.pagination[category].total = data.total;
+        state.pagination[category].totalPages = data.total_pages;
+
+        renderCategoryTable(category);
+    } catch (e) {
+        console.error(`Network error fetching ${category} records:`, e);
+        showStatusBanner("Could not connect to the server. Check that the app is running.", "error");
+        renderCategoryError(category);
+    } finally {
+        state.ui.loading = false;
+    }
+}
+
+function saveSelectionsToSession() {
+    try {
+        const payload = {
+            topography: Array.from(state.selected.topography.entries()),
+            dted: Array.from(state.selected.dted.entries()),
+            landused: Array.from(state.selected.landused.entries()),
+            sjungu: Array.from(state.selected.sjungu.entries()),
+            reportRef: state.reportRef
+        };
+        sessionStorage.setItem(SELECTION_STORAGE_KEY, JSON.stringify(payload));
+    } catch (e) {
+        console.warn("Could not save selections to sessionStorage:", e);
+    }
+}
+
+function loadSelectionsFromSession() {
+    try {
+        const raw = sessionStorage.getItem(SELECTION_STORAGE_KEY);
+        if (!raw) return;
+
+        const data = JSON.parse(raw);
+        ["topography", "dted", "landused", "sjungu"].forEach((category) => {
+            state.selected[category] = new Map(data[category] || []);
+        });
+        state.reportRef = data.reportRef || null;
+    } catch (e) {
+        console.warn("Could not restore selections from sessionStorage:", e);
+        sessionStorage.removeItem(SELECTION_STORAGE_KEY);
+    }
+}
+
+function clearSelectionsFromSession() {
+    sessionStorage.removeItem(SELECTION_STORAGE_KEY);
+}
+
+function applyPageSize(limit) {
+    const size = PAGE_SIZE_OPTIONS.includes(limit) ? limit : DEFAULT_PAGE_SIZE;
+    Object.keys(state.pagination).forEach((category) => {
+        state.pagination[category].limit = size;
+        state.pagination[category].page = 1;
+    });
+    if (DOM.pageSizeSelect) {
+        DOM.pageSizeSelect.value = String(size);
+    }
+    try {
+        localStorage.setItem(PAGE_SIZE_STORAGE_KEY, String(size));
+    } catch (e) {
+        console.warn("Could not save page size preference:", e);
+    }
+}
+
+function initPageSize() {
+    let saved = DEFAULT_PAGE_SIZE;
+    try {
+        const stored = parseInt(localStorage.getItem(PAGE_SIZE_STORAGE_KEY), 10);
+        if (PAGE_SIZE_OPTIONS.includes(stored)) {
+            saved = stored;
+        }
+    } catch (e) {
+        /* use default */
+    }
+    applyPageSize(saved);
+}
+
+function onPageSizeChange() {
+    if (!DOM.pageSizeSelect) return;
+    const limit = parseInt(DOM.pageSizeSelect.value, 10);
+    applyPageSize(limit);
+    fetchCategoryRecords(state.activeTab, true);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     initTheme();
+    initPageSize();
+    loadSelectionsFromSession();
+    fetchCurrentUser();
     fetchFilters();
-    fetchRecords();
+    fetchCategoryRecords("topography");
     setupEventListeners();
     updateDocDate();
+    renderDocumentPreview();
 });
 
-// Theme Management
+async function fetchCurrentUser() {
+    try {
+        const response = await fetch("/api/me");
+        if (handleAuthFailure(response)) return;
+        if (!response.ok) return;
+        const data = await response.json();
+        state.user = { username: data.username || "", role: data.role || "user" };
+    } catch (e) {
+        console.warn("Could not load user profile:", e);
+    }
+}
+
+const LIST_SORT = {
+    topography: (a, b) => String(a.sheetNum).localeCompare(String(b.sheetNum)),
+    dted: (a, b) => String(a.id_name).localeCompare(String(b.id_name)),
+    landused: (a, b) => Number(a.landused_id) - Number(b.landused_id),
+    sjungu: (a, b) => String(a.sheetNum).localeCompare(String(b.sheetNum))
+};
+
+function getSelectedSorted(category) {
+    const items = Array.from(state.selected[category].values());
+    const sorter = LIST_SORT[category];
+    if (!sorter) return items;
+    return items.sort(sorter);
+}
+
+function getSelectionPayload() {
+    return {
+        topography: getSelectedSorted("topography"),
+        dted: getSelectedSorted("dted"),
+        landused: getSelectedSorted("landused"),
+        sjungu: getSelectedSorted("sjungu")
+    };
+}
+
+function getSelectionCount() {
+    const payload = getSelectionPayload();
+    return payload.topography.length + payload.dted.length + payload.landused.length + payload.sjungu.length;
+}
+
+const AUDIT_ACTION_LABELS = {
+    login_failed: "Failed sign in",
+    create_report: "Report created",
+    export_xlsx: "Excel export",
+    export_pdf: "PDF export",
+    print: "Print",
+    clear_selection: "Clear selection"
+};
+
+const AUDIT_ACTIONS_WITHOUT_SELECTION = new Set(["clear_selection", "login_failed"]);
+
+function formatAuditAction(action) {
+    return AUDIT_ACTION_LABELS[action] || action;
+}
+
+function formatAuditDetails(entry) {
+    const bits = [];
+    if (entry.details && typeof entry.details === "object") {
+        Object.entries(entry.details).forEach(([key, value]) => {
+            if (value != null && value !== "") {
+                bits.push(`${key}: ${value}`);
+            }
+        });
+    }
+    return bits.length ? bits.join(" · ") : "—";
+}
+
+async function recordAudit(action, extra = {}) {
+    const item_count = extra.item_count ?? getSelectionCount();
+    if (item_count === 0 && !AUDIT_ACTIONS_WITHOUT_SELECTION.has(action)) {
+        return;
+    }
+    try {
+        const response = await fetch("/api/audit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                action,
+                report_ref: state.reportRef,
+                item_count,
+                details: extra.details || null
+            })
+        });
+        if (!response.ok) {
+            console.warn("Audit log failed:", response.status, await response.text());
+        }
+    } catch (e) {
+        console.warn("Audit log failed:", e);
+    }
+}
+
 function initTheme() {
     const savedTheme = localStorage.getItem("theme") || "light";
     if (savedTheme === "light") {
@@ -105,269 +454,116 @@ function toggleTheme() {
     DOM.themeToggle.innerHTML = isLight ? '<i class="fas fa-moon"></i>' : '<i class="fas fa-sun"></i>';
 }
 
-// Fetch dynamic years and levels for filters
 async function fetchFilters() {
     try {
         const response = await fetch("/api/filters");
+        if (handleAuthFailure(response)) return;
+
         const data = await response.json();
-        
-        if (data.error) {
-            console.error("Error fetching filters:", data.error);
+
+        if (!response.ok || data.error) {
+            showStatusBanner(data.error || "Failed to load filter options.", "warning");
             return;
         }
-        
-        // Populate Topography Years
+
         DOM.topoYear.innerHTML = '<option value="">All Release Years</option>';
-        data.release_years.forEach(year => {
-            DOM.topoYear.innerHTML += `<option value="${year}">${year}</option>`;
+        data.release_years.forEach((year) => {
+            const option = document.createElement("option");
+            option.value = year;
+            option.textContent = year;
+            DOM.topoYear.appendChild(option);
         });
-        
-        // Populate DTED Levels
+
         DOM.dtedLevel.innerHTML = '<option value="">All Levels</option>';
-        data.dted_levels.forEach(level => {
-            DOM.dtedLevel.innerHTML += `<option value="${level}">Level ${level}</option>`;
+        data.dted_levels.forEach((level) => {
+            const option = document.createElement("option");
+            option.value = level;
+            option.textContent = `Level ${level}`;
+            DOM.dtedLevel.appendChild(option);
         });
     } catch (e) {
         console.error("Network error fetching filters:", e);
+        showStatusBanner("Could not connect to the server. Check that the app is running.", "error");
     }
 }
 
-// Fetch records from backend based on filters
-async function fetchRecords() {
-    try {
-        const params = new URLSearchParams({
-            topo_search: state.filters.topo_search,
-            topo_year: state.filters.topo_year,
-            dted_search: state.filters.dted_search,
-            dted_level: state.filters.dted_level,
-            land_search: state.filters.land_search,
-            sjungu_search: state.filters.sjungu_search
-        });
-        
-        const response = await fetch(`/api/records?${params.toString()}`);
-        const data = await response.json();
-        
-        if (data.error) {
-            console.error("Error fetching records:", data.error);
-            return;
-        }
-        
-        state.records.topography = data.topography;
-        state.records.dted = data.dted;
-        state.records.landused = data.landused;
-        state.records.sjungu = data.sjungu;
-        
-        // Reset to first page when filtering
-        state.pagination.topography.page = 1;
-        state.pagination.dted.page = 1;
-        state.pagination.landused.page = 1;
-        state.pagination.sjungu.page = 1;
-        
-        renderAllTables();
-    } catch (e) {
-        console.error("Network error fetching records:", e);
-    }
-}
-
-// Render selector tables
 function renderAllTables() {
-    renderTopographyTable();
-    renderDtedTable();
-    renderLandusedTable();
-    renderSjunguTable();
+    Object.keys(TABLE_CONFIG).forEach(renderCategoryTable);
     renderDocumentPreview();
 }
 
-// Render Topography Table
-function renderTopographyTable() {
-    const list = state.records.topography;
-    const { page, limit } = state.pagination.topography;
-    const start = (page - 1) * limit;
-    const paginatedItems = list.slice(start, start + limit);
-    
-    DOM.topoTableBody.innerHTML = "";
-    
-    if (paginatedItems.length === 0) {
-        DOM.topoTableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No topography records found</td></tr>`;
-        DOM.topoPageInfo.textContent = "0 of 0";
+function renderCategoryTable(category) {
+    const config = TABLE_CONFIG[category];
+    const list = state.records[category];
+    const { page, total, totalPages } = state.pagination[category];
+    const tableBody = config.tableBody();
+
+    tableBody.innerHTML = "";
+
+    if (list.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="${config.colspan}" style="text-align: center; color: var(--text-muted);">${config.emptyMessage}</td></tr>`;
+        config.pageInfo().textContent = total ? `Page 1 of ${totalPages} (${total} records)` : "0 records";
         return;
     }
-    
-    paginatedItems.forEach(row => {
-        const isSelected = state.selected.topography.has(row.sheetNum);
+
+    list.forEach((row, rowIdx) => {
+        const key = row[config.keyProp];
+        const isSelected = state.selected[category].has(key);
         const tr = document.createElement("tr");
+        tr.setAttribute("role", "row");
+        tr.tabIndex = 0;
+        tr.setAttribute("aria-selected", isSelected ? "true" : "false");
         if (isSelected) tr.classList.add("selected");
-        
-        tr.innerHTML = `
-            <td>
-                <div class="custom-checkbox">
-                    <i class="fas fa-check"></i>
-                </div>
-            </td>
-            <td style="font-weight: 600; color: var(--primary-light);">${row.sheetNum}</td>
-            <td>${row.sheetName}</td>
-            <td>${row.sheetScale}</td>
-            <td>${row.release_year}</td>
-        `;
-        
-        tr.addEventListener("click", () => {
-            toggleSelection("topography", row.sheetNum, row);
-            renderTopographyTable();
+
+        const checkTd = document.createElement("td");
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.className = "row-select-checkbox";
+        checkbox.checked = isSelected;
+        checkbox.setAttribute("aria-label", config.rowLabel(row));
+        checkbox.addEventListener("click", (e) => e.stopPropagation());
+        checkbox.addEventListener("change", () => {
+            toggleSelection(category, key, row);
+            renderCategoryTable(category);
         });
-        
-        DOM.topoTableBody.appendChild(tr);
+        checkTd.appendChild(checkbox);
+        tr.appendChild(checkTd);
+
+        const { page, limit } = state.pagination[category];
+        config.columns.forEach((col) => {
+            const td = document.createElement("td");
+            if (col.style) td.style.cssText = col.style;
+            if (col.listIndex) {
+                td.textContent = String((page - 1) * limit + rowIdx + 1);
+            } else if (col.html) {
+                td.innerHTML = col.html(row);
+            } else {
+                td.textContent = col.value(row) ?? "";
+            }
+            tr.appendChild(td);
+        });
+
+        const activateRow = () => {
+            toggleSelection(category, key, row);
+            renderCategoryTable(category);
+        };
+        tr.addEventListener("click", activateRow);
+        tr.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                activateRow();
+            }
+        });
+
+        tableBody.appendChild(tr);
     });
-    
-    // Update Pagination controls
-    const totalPages = Math.ceil(list.length / limit);
-    DOM.topoPageInfo.textContent = `Page ${page} of ${totalPages || 1}`;
-    DOM.topoPrev.disabled = page === 1;
-    DOM.topoNext.disabled = page === totalPages || totalPages === 0;
-    
-    // Update select all checkbox state
-    updateSelectAllCheckboxState("topography", paginatedItems);
+
+    config.pageInfo().textContent = `Page ${page} of ${totalPages} (${total} records)`;
+    config.prevBtn().disabled = page === 1;
+    config.nextBtn().disabled = page >= totalPages;
+    updateSelectAllCheckboxState(category, list);
 }
 
-// Render DTED Table
-function renderDtedTable() {
-    const list = state.records.dted;
-    const { page, limit } = state.pagination.dted;
-    const start = (page - 1) * limit;
-    const paginatedItems = list.slice(start, start + limit);
-    
-    DOM.dtedTableBody.innerHTML = "";
-    
-    if (paginatedItems.length === 0) {
-        DOM.dtedTableBody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">No DTED records found</td></tr>`;
-        DOM.dtedPageInfo.textContent = "0 of 0";
-        return;
-    }
-    
-    paginatedItems.forEach(row => {
-        const isSelected = state.selected.dted.has(row.id_name);
-        const tr = document.createElement("tr");
-        if (isSelected) tr.classList.add("selected");
-        
-        tr.innerHTML = `
-            <td>
-                <div class="custom-checkbox">
-                    <i class="fas fa-check"></i>
-                </div>
-            </td>
-            <td style="word-break: break-all;">${row.id_name}</td>
-            <td><span class="badge" style="background: rgba(6, 182, 212, 0.15); color: var(--accent); padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 600;">Level ${row.level}</span></td>
-        `;
-        
-        tr.addEventListener("click", () => {
-            toggleSelection("dted", row.id_name, row);
-            renderDtedTable();
-        });
-        
-        DOM.dtedTableBody.appendChild(tr);
-    });
-    
-    const totalPages = Math.ceil(list.length / limit);
-    DOM.dtedPageInfo.textContent = `Page ${page} of ${totalPages || 1}`;
-    DOM.dtedPrev.disabled = page === 1;
-    DOM.dtedNext.disabled = page === totalPages || totalPages === 0;
-    
-    updateSelectAllCheckboxState("dted", paginatedItems);
-}
-
-// Render Land Used Table
-function renderLandusedTable() {
-    const list = state.records.landused;
-    const { page, limit } = state.pagination.landused;
-    const start = (page - 1) * limit;
-    const paginatedItems = list.slice(start, start + limit);
-    
-    DOM.landTableBody.innerHTML = "";
-    
-    if (paginatedItems.length === 0) {
-        DOM.landTableBody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">No land use categories found</td></tr>`;
-        DOM.landPageInfo.textContent = "0 of 0";
-        return;
-    }
-    
-    paginatedItems.forEach(row => {
-        const isSelected = state.selected.landused.has(row.landused_id);
-        const tr = document.createElement("tr");
-        if (isSelected) tr.classList.add("selected");
-        
-        tr.innerHTML = `
-            <td>
-                <div class="custom-checkbox">
-                    <i class="fas fa-check"></i>
-                </div>
-            </td>
-            <td>${row.landused_id}</td>
-            <td>${row.category}</td>
-        `;
-        
-        tr.addEventListener("click", () => {
-            toggleSelection("landused", row.landused_id, row);
-            renderLandusedTable();
-        });
-        
-        DOM.landTableBody.appendChild(tr);
-    });
-    
-    const totalPages = Math.ceil(list.length / limit);
-    DOM.landPageInfo.textContent = `Page ${page} of ${totalPages || 1}`;
-    DOM.landPrev.disabled = page === 1;
-    DOM.landNext.disabled = page === totalPages || totalPages === 0;
-    
-    updateSelectAllCheckboxState("landused", paginatedItems);
-}
-
-// Render Sjungu Table
-function renderSjunguTable() {
-    const list = state.records.sjungu;
-    const { page, limit } = state.pagination.sjungu;
-    const start = (page - 1) * limit;
-    const paginatedItems = list.slice(start, start + limit);
-    
-    DOM.sjunguTableBody.innerHTML = "";
-    
-    if (paginatedItems.length === 0) {
-        DOM.sjunguTableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No Sjungu records found</td></tr>`;
-        DOM.sjunguPageInfo.textContent = "0 of 0";
-        return;
-    }
-    
-    paginatedItems.forEach(row => {
-        const isSelected = state.selected.sjungu.has(row.sheetNum);
-        const tr = document.createElement("tr");
-        if (isSelected) tr.classList.add("selected");
-        
-        tr.innerHTML = `
-            <td>
-                <div class="custom-checkbox">
-                    <i class="fas fa-check"></i>
-                </div>
-            </td>
-            <td style="font-weight: 600; color: var(--primary-light);">${row.sheetNum}</td>
-            <td>${row.sheetName}</td>
-            <td>${row.sheetScale}</td>
-        `;
-        
-        tr.addEventListener("click", () => {
-            toggleSelection("sjungu", row.sheetNum, row);
-            renderSjunguTable();
-        });
-        
-        DOM.sjunguTableBody.appendChild(tr);
-    });
-    
-    const totalPages = Math.ceil(list.length / limit);
-    DOM.sjunguPageInfo.textContent = `Page ${page} of ${totalPages || 1}`;
-    DOM.sjunguPrev.disabled = page === 1;
-    DOM.sjunguNext.disabled = page === totalPages || totalPages === 0;
-    
-    updateSelectAllCheckboxState("sjungu", paginatedItems);
-}
-
-// Toggle row selection
 function toggleSelection(category, id, rowData) {
     const catMap = state.selected[category];
     if (catMap.has(id)) {
@@ -375,75 +571,113 @@ function toggleSelection(category, id, rowData) {
     } else {
         catMap.set(id, rowData);
     }
+    saveSelectionsToSession();
     renderDocumentPreview();
 }
 
-// Toggle select all on current page
 function toggleSelectAll(category) {
-    const list = state.records[category];
-    const { page, limit } = state.pagination[category];
-    const start = (page - 1) * limit;
-    const paginatedItems = list.slice(start, start + limit);
-    
+    const pageItems = state.records[category];
     const catMap = state.selected[category];
-    const keyProp = category === "topography" ? "sheetNum" : (category === "dted" ? "id_name" : (category === "sjungu" ? "sheetNum" : "landused_id"));
-    
-    // Check if all paginated items are already selected
-    const allSelected = paginatedItems.every(row => catMap.has(row[keyProp]));
-    
+    const keyProp = TABLE_CONFIG[category].keyProp;
+    const allSelected = pageItems.every((row) => catMap.has(row[keyProp]));
+
     if (allSelected) {
-        // Deselect all on current page
-        paginatedItems.forEach(row => catMap.delete(row[keyProp]));
+        pageItems.forEach((row) => catMap.delete(row[keyProp]));
     } else {
-        // Select all on current page
-        paginatedItems.forEach(row => catMap.set(row[keyProp], row));
+        pageItems.forEach((row) => catMap.set(row[keyProp], row));
     }
-    
+
+    saveSelectionsToSession();
     renderAllTables();
 }
 
-// Helper to keep Select All checkbox icons accurately showing current page state
-function updateSelectAllCheckboxState(category, paginatedItems) {
+function updateSelectAllCheckboxState(category, pageItems) {
     const catMap = state.selected[category];
-    const keyProp = category === "topography" ? "sheetNum" : (category === "dted" ? "id_name" : (category === "sjungu" ? "sheetNum" : "landused_id"));
-    const domKey = category === "topography" ? "topoSelectAll" : (category === "dted" ? "dtedSelectAll" : (category === "sjungu" ? "sjunguSelectAll" : "landSelectAll"));
-    const checkAllBtn = DOM[domKey];
-    
-    if (paginatedItems.length === 0) {
-        checkAllBtn.innerHTML = '<i class="far fa-square"></i>';
+    const keyProp = TABLE_CONFIG[category].keyProp;
+    const checkAllBtn = TABLE_CONFIG[category].selectAllBtn();
+
+    if (pageItems.length === 0) {
+        checkAllBtn.innerHTML = '<i class="far fa-square"></i> Select Page';
         return;
     }
-    
-    const allSelected = paginatedItems.every(row => catMap.has(row[keyProp]));
-    const someSelected = paginatedItems.some(row => catMap.has(row[keyProp]));
-    
+
+    const allSelected = pageItems.every((row) => catMap.has(row[keyProp]));
+    const someSelected = pageItems.some((row) => catMap.has(row[keyProp]));
+
     if (allSelected) {
-        checkAllBtn.innerHTML = '<i class="fas fa-check-square" style="color: var(--success);"></i>';
+        checkAllBtn.innerHTML = '<i class="fas fa-check-square" style="color: var(--success);"></i> Select Page';
     } else if (someSelected) {
-        checkAllBtn.innerHTML = '<i class="fas fa-minus-square" style="color: var(--primary-light);"></i>';
+        checkAllBtn.innerHTML = '<i class="fas fa-minus-square" style="color: var(--primary-light);"></i> Select Page';
     } else {
-        checkAllBtn.innerHTML = '<i class="far fa-square"></i>';
+        checkAllBtn.innerHTML = '<i class="far fa-square"></i> Select Page';
     }
 }
 
-// Clear all selection Map caches
 function clearAllSelection() {
+    const prevCount = getSelectionCount();
+    const prevRef = state.reportRef;
     state.selected.topography.clear();
     state.selected.dted.clear();
     state.selected.landused.clear();
     state.selected.sjungu.clear();
+    state.reportRef = null;
+    clearSelectionsFromSession();
     renderAllTables();
+    if (prevCount > 0) {
+        recordAudit("clear_selection", { item_count: prevCount, details: { report_ref: prevRef } });
+    }
 }
 
-// Render Document Printable Card Layout (A4 format)
+function generateReportRef() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const stamp = String(now.getTime()).slice(-5);
+    const suffix = Math.random().toString(36).substring(2, 4).toUpperCase();
+    return `LM-${year}-${stamp}${suffix}`;
+}
+
+function estimatePageCount(selectedTopo, selectedDted, selectedLand, selectedSjungu) {
+    const rowCount = selectedTopo.length + selectedSjungu.length + selectedLand.length + selectedDted.length;
+    const sectionCount = [
+        selectedTopo.length + selectedSjungu.length,
+        selectedLand.length,
+        selectedDted.length
+    ].filter((n) => n > 0).length;
+
+    const totalRows = rowCount + sectionCount;
+    const rowsPerPage = 22;
+    return Math.max(1, Math.ceil(totalRows / rowsPerPage));
+}
+
+function updateDocumentMetadata(selectedTopo, selectedDted, selectedLand, selectedSjungu) {
+    if (!state.reportRef) {
+        state.reportRef = generateReportRef();
+        saveSelectionsToSession();
+        recordAudit("create_report");
+    }
+    if (DOM.docRef) {
+        DOM.docRef.textContent = state.reportRef;
+    }
+    if (DOM.docPageInfo) {
+        const totalPages = estimatePageCount(selectedTopo, selectedDted, selectedLand, selectedSjungu);
+        DOM.docPageInfo.textContent = `Page 1 of ${totalPages}`;
+    }
+}
+
+function formatTopoSjungTotal(topoCount, sjungCount) {
+    if (topoCount > 0 && sjungCount > 0) {
+        return `${topoCount} + ${sjungCount}`;
+    }
+    return String(topoCount || sjungCount);
+}
+
 function renderDocumentPreview() {
-    const selectedTopo = Array.from(state.selected.topography.values());
-    const selectedDted = Array.from(state.selected.dted.values());
-    const selectedLand = Array.from(state.selected.landused.values());
-    const selectedSjungu = Array.from(state.selected.sjungu.values());
-    
+    const selectedTopo = getSelectedSorted("topography");
+    const selectedDted = getSelectedSorted("dted");
+    const selectedLand = getSelectedSorted("landused");
+    const selectedSjungu = getSelectedSorted("sjungu");
     const hasItems = selectedTopo.length > 0 || selectedDted.length > 0 || selectedLand.length > 0 || selectedSjungu.length > 0;
-    
+
     if (!hasItems) {
         DOM.docContent.innerHTML = `
             <div class="empty-state">
@@ -455,22 +689,28 @@ function renderDocumentPreview() {
         DOM.btnClearSelection.disabled = true;
         DOM.btnPrint.disabled = true;
         DOM.btnPdf.disabled = true;
+        if (DOM.btnXlsx) DOM.btnXlsx.disabled = true;
+        if (DOM.docRef) DOM.docRef.textContent = "—";
+        if (DOM.docPageInfo) DOM.docPageInfo.textContent = "Page 1 of 1";
         return;
     }
-    
+
+    updateDocumentMetadata(selectedTopo, selectedDted, selectedLand, selectedSjungu);
+
     DOM.btnClearSelection.disabled = false;
     DOM.btnPrint.disabled = false;
     DOM.btnPdf.disabled = false;
-    
+    if (DOM.btnXlsx) DOM.btnXlsx.disabled = false;
+
     let html = "";
-    
-    // Render Category 1: Topography & Sjungu Section (Combined)
+
     if (selectedTopo.length > 0 || selectedSjungu.length > 0) {
         const totalCount = selectedTopo.length + selectedSjungu.length;
+        const totalLabel = formatTopoSjungTotal(selectedTopo.length, selectedSjungu.length);
         html += `
             <div class="doc-section">
                 <div class="doc-section-title">
-                    <span>1. TOPOGRAPHY & SJUNGU RECORDS</span>
+                    <span>1. TOPOGRAPHY & SJUNG RECORDS</span>
                     <span class="doc-section-count">${totalCount} item(s)</span>
                 </div>
                 <table class="doc-table">
@@ -487,31 +727,34 @@ function renderDocumentPreview() {
                         ${selectedTopo.map((row, idx) => `
                             <tr>
                                 <td style="text-align: center; font-weight: 600; color: #64748b;">${idx + 1}.</td>
-                                <td style="font-weight: 700; color: #1e3a8a;">${row.sheetNum}</td>
-                                <td>${row.sheetName}</td>
-                                <td>${row.sheetScale}</td>
-                                <td>${row.release_year}</td>
+                                <td style="font-weight: 700; color: #1e3a8a;">${escapeHtml(row.sheetNum)}</td>
+                                <td>${escapeHtml(row.sheetName)}</td>
+                                <td>${escapeHtml(row.sheetScale)}</td>
+                                <td>${escapeHtml(row.release_year)}</td>
                             </tr>
                         `).join("")}
                         ${selectedSjungu.map((row, idx) => `
                             <tr>
                                 <td style="text-align: center; font-weight: 600; color: #64748b;">${idx + 1}.</td>
-                                <td style="font-weight: 700; color: #1e3a8a;">${row.sheetNum}</td>
-                                <td>${row.sheetName}</td>
-                                <td>${row.sheetScale}</td>
+                                <td style="font-weight: 700; color: #1e3a8a;">${escapeHtml(row.sheetNum)}</td>
+                                <td>${escapeHtml(row.sheetName)}</td>
+                                <td>${escapeHtml(row.sheetScale)}</td>
                                 <td></td>
                             </tr>
                         `).join("")}
+                        <tr class="doc-total-row">
+                            <td colspan="4">TOTAL</td>
+                            <td>${totalLabel}</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
         `;
     }
-    
-    // Render Category 2: Land Used Section
+
     if (selectedLand.length > 0) {
         html += `
-            <div class="doc-section" style="margin-top: 1.5rem;">
+            <div class="doc-section doc-section-follow">
                 <div class="doc-section-title">
                     <span>2. LAND USE CATEGORIES</span>
                     <span class="doc-section-count">${selectedLand.length} item(s)</span>
@@ -519,27 +762,32 @@ function renderDocumentPreview() {
                 <table class="doc-table">
                     <thead>
                         <tr>
-                            <th style="width: 25%;">Land Used ID</th>
-                            <th style="width: 75%;">Description & Category Name</th>
+                            <th style="width: 10%; text-align: center;">No.</th>
+                            <th style="width: 55%;">Category</th>
+                            <th style="width: 35%;">Land Used ID</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${selectedLand.map(row => `
+                        ${selectedLand.map((row, idx) => `
                             <tr>
-                                <td style="font-weight: 700;">${row.landused_id}</td>
-                                <td>${row.category}</td>
+                                <td style="text-align: center; font-weight: 600; color: #64748b;">${idx + 1}.</td>
+                                <td>${escapeHtml(row.category)}</td>
+                                <td style="font-weight: 700;">${escapeHtml(row.landused_id)}</td>
                             </tr>
                         `).join("")}
+                        <tr class="doc-total-row">
+                            <td colspan="2">TOTAL</td>
+                            <td>${selectedLand.length}</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
         `;
     }
 
-    // Render Category 3: DTED Section
     if (selectedDted.length > 0) {
         html += `
-            <div class="doc-section" style="margin-top: 1.5rem;">
+            <div class="doc-section doc-section-follow">
                 <div class="doc-section-title">
                     <span>3. DIGITAL TERRAIN ELEVATION DATA (DTED)</span>
                     <span class="doc-section-count">${selectedDted.length} item(s)</span>
@@ -547,27 +795,78 @@ function renderDocumentPreview() {
                 <table class="doc-table">
                     <thead>
                         <tr>
-                            <th style="width: 80%;">Elevation ID / File Name</th>
+                            <th style="width: 8%; text-align: center;">No.</th>
+                            <th style="width: 72%;">Elevation ID / File Name</th>
                             <th style="width: 20%;">DTED Level</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${selectedDted.map(row => `
+                        ${selectedDted.map((row, idx) => `
                             <tr>
-                                <td style="font-family: monospace; font-size: 0.75rem;">${row.id_name}</td>
-                                <td style="font-weight: 700;">Level ${row.level}</td>
+                                <td style="text-align: center; font-weight: 600; color: #64748b;">${idx + 1}.</td>
+                                <td style="font-family: monospace; font-size: 0.75rem;">${escapeHtml(row.id_name)}</td>
+                                <td style="font-weight: 700;">Level ${escapeHtml(row.level)}</td>
                             </tr>
                         `).join("")}
+                        <tr class="doc-total-row">
+                            <td colspan="2">TOTAL</td>
+                            <td>${selectedDted.length}</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
         `;
     }
-    
+
     DOM.docContent.innerHTML = html;
 }
 
-// Update printed document title when user types in UI
+async function exportExcel() {
+    const payload = getSelectionPayload();
+    const itemCount = getSelectionCount();
+    if (itemCount === 0) return;
+
+    if (DOM.btnXlsx) {
+        DOM.btnXlsx.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Excel';
+        DOM.btnXlsx.disabled = true;
+    }
+
+    try {
+        const response = await fetch("/api/export/xlsx", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                ...payload,
+                report_ref: state.reportRef,
+                report_title: DOM.docTitleInput.value.trim() || "SaP LISTMAP DATA SPECIFICATION REPORT"
+            })
+        });
+        if (handleAuthFailure(response)) return;
+        if (!response.ok) {
+            const err = await response.json();
+            showStatusBanner(err.error || "Excel export failed.", "error");
+            return;
+        }
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        const refSuffix = state.reportRef ? `_${state.reportRef}` : "";
+        link.href = url;
+        link.download = `SaP_ListMap_Export${refSuffix}_${new Date().toISOString().split("T")[0]}.xlsx`;
+        link.click();
+        URL.revokeObjectURL(url);
+    } catch (e) {
+        console.error("Excel export failed:", e);
+        showStatusBanner("Excel export failed.", "error");
+    } finally {
+        if (DOM.btnXlsx) {
+            DOM.btnXlsx.innerHTML = '<i class="fas fa-file-excel"></i> Excel';
+            DOM.btnXlsx.disabled = getSelectionCount() === 0;
+        }
+    }
+}
+
 function updateDocumentTitleText() {
     const inputTitle = DOM.docTitleInput.value.trim();
     const docTitleEl = document.getElementById("document-title-header");
@@ -576,156 +875,221 @@ function updateDocumentTitleText() {
     }
 }
 
-// Generate PDF direct download using html2pdf
-function generatePDF() {
-    const element = document.getElementById("printable-document");
-    const opt = {
-        margin:       15,
-        filename:     `SaP_ListMap_Report_${new Date().toISOString().split('T')[0]}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, logging: false },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-    
-    // Show spinner or disabling button states
-    DOM.btnPdf.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
-    DOM.btnPdf.disabled = true;
-    
-    html2pdf().from(element).set(opt).save().then(() => {
-        DOM.btnPdf.innerHTML = '<i class="fas fa-file-pdf"></i> Generate PDF';
-        DOM.btnPdf.disabled = false;
-    }).catch(err => {
-        console.error("PDF generation failed:", err);
-        DOM.btnPdf.innerHTML = '<i class="fas fa-file-pdf"></i> Generate PDF';
-        DOM.btnPdf.disabled = false;
+function setPdfCaptureMode(enabled) {
+    const frame = document.getElementById("printable-document");
+    if (frame) frame.classList.toggle("pdf-capture", enabled);
+    if (DOM.docContent) DOM.docContent.classList.toggle("pdf-capture", enabled);
+}
+
+function waitForReflow() {
+    return new Promise((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(resolve));
     });
 }
 
-// Setup all frontend event listeners
+async function generatePDF() {
+    const element = document.getElementById("printable-document");
+    const refSuffix = state.reportRef ? `_${state.reportRef}` : "";
+    const opt = {
+        margin: 15,
+        filename: `SaP_ListMap_Report${refSuffix}_${new Date().toISOString().split("T")[0]}.pdf`,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false, scrollY: 0 },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        pagebreak: {
+            mode: ["css", "legacy"],
+            avoid: "tr"
+        }
+    };
+
+    DOM.btnPdf.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+    DOM.btnPdf.disabled = true;
+
+    setPdfCaptureMode(true);
+    await waitForReflow();
+
+    try {
+        const pdf = await html2pdf().set(opt).from(element).toPdf().get("pdf");
+        const totalPages = pdf.internal.getNumberOfPages();
+        if (DOM.docPageInfo) {
+            DOM.docPageInfo.textContent = `Page 1 of ${totalPages}`;
+        }
+        pdf.save(opt.filename);
+        recordAudit("export_pdf");
+    } catch (err) {
+        console.error("PDF generation failed:", err);
+        showStatusBanner("PDF generation failed.", "error");
+    } finally {
+        setPdfCaptureMode(false);
+        DOM.btnPdf.innerHTML = '<i class="fas fa-file-pdf"></i> Generate PDF';
+        DOM.btnPdf.disabled = getSelectionCount() === 0;
+    }
+}
+
 function setupEventListeners() {
-    // Tab shifting
-    DOM.tabs.forEach(tab => {
+    DOM.tabs.forEach((tab) => {
         tab.addEventListener("click", () => {
             const target = tab.getAttribute("data-tab");
-            
-            DOM.tabs.forEach(t => t.classList.remove("active"));
-            DOM.contents.forEach(c => c.classList.remove("active"));
-            
+            DOM.tabs.forEach((t) => t.classList.remove("active"));
+            DOM.contents.forEach((c) => c.classList.remove("active"));
             tab.classList.add("active");
             document.getElementById(`${target}-content`).classList.add("active");
             state.activeTab = target;
+            fetchCategoryRecords(target);
         });
     });
-    
-    // Theme toggling
+
     DOM.themeToggle.addEventListener("click", toggleTheme);
-    
-    // Topography searches & filters
+
     DOM.topoSearch.addEventListener("input", debounce(() => {
         state.filters.topo_search = DOM.topoSearch.value;
-        fetchRecords();
+        fetchCategoryRecords("topography", true);
     }, 300));
-    
     DOM.topoYear.addEventListener("change", () => {
         state.filters.topo_year = DOM.topoYear.value;
-        fetchRecords();
+        fetchCategoryRecords("topography", true);
     });
-    
     DOM.topoSelectAll.addEventListener("click", () => toggleSelectAll("topography"));
-    
     DOM.topoPrev.addEventListener("click", () => {
         if (state.pagination.topography.page > 1) {
             state.pagination.topography.page--;
-            renderTopographyTable();
+            fetchCategoryRecords("topography");
         }
     });
     DOM.topoNext.addEventListener("click", () => {
-        const maxPage = Math.ceil(state.records.topography.length / state.pagination.topography.limit);
-        if (state.pagination.topography.page < maxPage) {
+        if (state.pagination.topography.page < state.pagination.topography.totalPages) {
             state.pagination.topography.page++;
-            renderTopographyTable();
+            fetchCategoryRecords("topography");
         }
     });
-    
-    // DTED searches & filters
+
     DOM.dtedSearch.addEventListener("input", debounce(() => {
         state.filters.dted_search = DOM.dtedSearch.value;
-        fetchRecords();
+        fetchCategoryRecords("dted", true);
     }, 300));
-    
     DOM.dtedLevel.addEventListener("change", () => {
         state.filters.dted_level = DOM.dtedLevel.value;
-        fetchRecords();
+        fetchCategoryRecords("dted", true);
     });
-    
     DOM.dtedSelectAll.addEventListener("click", () => toggleSelectAll("dted"));
-    
     DOM.dtedPrev.addEventListener("click", () => {
         if (state.pagination.dted.page > 1) {
             state.pagination.dted.page--;
-            renderDtedTable();
+            fetchCategoryRecords("dted");
         }
     });
     DOM.dtedNext.addEventListener("click", () => {
-        const maxPage = Math.ceil(state.records.dted.length / state.pagination.dted.limit);
-        if (state.pagination.dted.page < maxPage) {
+        if (state.pagination.dted.page < state.pagination.dted.totalPages) {
             state.pagination.dted.page++;
-            renderDtedTable();
+            fetchCategoryRecords("dted");
         }
     });
-    
-    // Land Used searches & filters
+
     DOM.landSearch.addEventListener("input", debounce(() => {
         state.filters.land_search = DOM.landSearch.value;
-        fetchRecords();
+        fetchCategoryRecords("landused", true);
     }, 300));
-    
     DOM.landSelectAll.addEventListener("click", () => toggleSelectAll("landused"));
-    
     DOM.landPrev.addEventListener("click", () => {
         if (state.pagination.landused.page > 1) {
             state.pagination.landused.page--;
-            renderLandusedTable();
+            fetchCategoryRecords("landused");
         }
     });
     DOM.landNext.addEventListener("click", () => {
-        const maxPage = Math.ceil(state.records.landused.length / state.pagination.landused.limit);
-        if (state.pagination.landused.page < maxPage) {
+        if (state.pagination.landused.page < state.pagination.landused.totalPages) {
             state.pagination.landused.page++;
-            renderLandusedTable();
+            fetchCategoryRecords("landused");
         }
     });
-    
-    // Sjungu searches & filters
+
     DOM.sjunguSearch.addEventListener("input", debounce(() => {
         state.filters.sjungu_search = DOM.sjunguSearch.value;
-        fetchRecords();
+        fetchCategoryRecords("sjungu", true);
     }, 300));
-    
     DOM.sjunguSelectAll.addEventListener("click", () => toggleSelectAll("sjungu"));
-    
     DOM.sjunguPrev.addEventListener("click", () => {
         if (state.pagination.sjungu.page > 1) {
             state.pagination.sjungu.page--;
-            renderSjunguTable();
+            fetchCategoryRecords("sjungu");
         }
     });
     DOM.sjunguNext.addEventListener("click", () => {
-        const maxPage = Math.ceil(state.records.sjungu.length / state.pagination.sjungu.limit);
-        if (state.pagination.sjungu.page < maxPage) {
+        if (state.pagination.sjungu.page < state.pagination.sjungu.totalPages) {
             state.pagination.sjungu.page++;
-            renderSjunguTable();
+            fetchCategoryRecords("sjungu");
         }
     });
-    
-    // Action panel triggers
+
     DOM.btnClearSelection.addEventListener("click", clearAllSelection);
-    DOM.btnPrint.addEventListener("click", () => window.print());
+    DOM.btnPrint.addEventListener("click", () => {
+        recordAudit("print");
+        window.print();
+    });
     DOM.btnPdf.addEventListener("click", generatePDF);
+    if (DOM.btnXlsx) DOM.btnXlsx.addEventListener("click", exportExcel);
+    if (DOM.btnAuditLog) DOM.btnAuditLog.addEventListener("click", openAuditModal);
+    if (DOM.auditModalClose) DOM.auditModalClose.addEventListener("click", closeAuditModal);
+    if (DOM.auditModalBackdrop) DOM.auditModalBackdrop.addEventListener("click", closeAuditModal);
+    if (DOM.auditModalRefresh) DOM.auditModalRefresh.addEventListener("click", fetchAuditLogs);
+    if (DOM.pageSizeSelect) DOM.pageSizeSelect.addEventListener("change", onPageSizeChange);
     DOM.docTitleInput.addEventListener("input", updateDocumentTitleText);
 }
 
-// Helper: Debouncer to prevent hammering database while searching
+function openAuditModal() {
+    if (!DOM.auditModal) return;
+    DOM.auditModal.classList.remove("hidden");
+    fetchAuditLogs();
+}
+
+function closeAuditModal() {
+    if (!DOM.auditModal) return;
+    DOM.auditModal.classList.add("hidden");
+}
+
+async function fetchAuditLogs() {
+    if (!DOM.auditTableBody) return;
+    const colspan = 7;
+    DOM.auditTableBody.innerHTML = `<tr><td colspan="${colspan}" class="loading-row"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>`;
+
+    try {
+        const response = await fetch("/api/audit?limit=50");
+        if (handleAuthFailure(response)) return;
+        if (response.status === 403) {
+            DOM.auditTableBody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center;color:var(--text-muted);">Admin access required</td></tr>`;
+            return;
+        }
+        const data = await response.json();
+        if (!response.ok || data.error) {
+            DOM.auditTableBody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center;color:var(--text-muted);">Unable to load audit log</td></tr>`;
+            return;
+        }
+
+        if (!data.items.length) {
+            DOM.auditTableBody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center;color:var(--text-muted);">No audit entries yet</td></tr>`;
+            return;
+        }
+
+        DOM.auditTableBody.innerHTML = data.items.map((entry) => {
+            const details = formatAuditDetails(entry);
+            return `
+            <tr>
+                <td>${escapeHtml(entry.created_at)}</td>
+                <td>${escapeHtml(entry.username)}</td>
+                <td><span class="role-tag role-${escapeHtml(entry.role)}">${escapeHtml(entry.role)}</span></td>
+                <td><span class="audit-action-tag">${escapeHtml(formatAuditAction(entry.action))}</span></td>
+                <td>${escapeHtml(entry.report_ref || "—")}</td>
+                <td>${escapeHtml(String(entry.item_count ?? 0))}</td>
+                <td class="audit-details-cell" title="${escapeHtml(details)}">${escapeHtml(details)}</td>
+            </tr>
+        `;
+        }).join("");
+    } catch (e) {
+        console.error("Failed to load audit log:", e);
+        DOM.auditTableBody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center;color:var(--text-muted);">Unable to load audit log</td></tr>`;
+    }
+}
+
 function debounce(func, wait) {
     let timeout;
     return function executedFunction(...args) {
@@ -738,10 +1102,8 @@ function debounce(func, wait) {
     };
 }
 
-// Update dynamic date in document card footer/header
 function updateDocDate() {
     const today = new Date();
-    const options = { year: 'numeric', month: 'long', day: 'numeric' };
-    const dateStr = today.toLocaleDateString('en-US', options);
-    DOM.docDate.textContent = dateStr;
+    const options = { year: "numeric", month: "long", day: "numeric" };
+    DOM.docDate.textContent = today.toLocaleDateString("en-US", options);
 }

@@ -1,0 +1,106 @@
+{
+  "presentation_goal": "Explain the SaP LISTMAP system to a supervisor with complete technical context.",
+  "audience": "Company supervisor reviewing an intern/student project deliverable.",
+  "theme_style": "Minimalist — light background, dark slate text, single teal accent, generous whitespace.",
+  "visual_system": {
+    "background_strategy": "Uniform light gray-white on all content pages; cover uses dark slate with teal accent.",
+    "motif": "Left teal accent bar (8px) on every content slide.",
+    "color_roles": {
+      "primary": "rgb(15, 23, 42) — headings and key labels",
+      "secondary": "rgb(51, 65, 85) — body text",
+      "accent": "rgb(15, 118, 110) — accent bar, highlights, flowchart nodes"
+    }
+  },
+  "slides": [
+    {
+      "index": 1,
+      "role": "cover",
+      "title": "SaP LISTMAP",
+      "key_message": "Cartography dataset dashboard for browsing, selecting, and exporting map records.",
+      "layout_type": "cover_centered",
+      "visual_focus": "Large title + subtitle on dark background",
+      "text_density": "low"
+    },
+    {
+      "index": 2,
+      "role": "overview",
+      "title": "Project Overview",
+      "key_message": "Web dashboard for cartography datasets with search, filter, selection, and report export.",
+      "layout_type": "left_text_right_icon",
+      "visual_focus": "Four category badges",
+      "text_density": "medium"
+    },
+    {
+      "index": 3,
+      "role": "tech_stack",
+      "title": "Technology Stack",
+      "key_message": "Flask + MySQL backend, vanilla JS frontend, Docker deployment.",
+      "layout_type": "three_column_cards",
+      "visual_focus": "Layer cards: Frontend / Backend / Infrastructure",
+      "text_density": "medium"
+    },
+    {
+      "index": 4,
+      "role": "architecture",
+      "title": "System Architecture",
+      "key_message": "Three-tier: Browser → Flask API → MySQL database.",
+      "layout_type": "horizontal_layers",
+      "visual_focus": "Architecture diagram with arrows",
+      "text_density": "low"
+    },
+    {
+      "index": 5,
+      "role": "workflow",
+      "title": "User Workflow",
+      "key_message": "Login → Browse → Select → Preview → Export.",
+      "layout_type": "numbered_steps",
+      "visual_focus": "5-step horizontal flow",
+      "text_density": "medium"
+    },
+    {
+      "index": 6,
+      "role": "flowchart",
+      "title": "System Flowchart",
+      "key_message": "End-to-end request and export flow.",
+      "layout_type": "whiteboard_mermaid",
+      "visual_focus": "Mermaid flowchart",
+      "text_density": "low"
+    },
+    {
+      "index": 7,
+      "role": "database",
+      "title": "Database Schema",
+      "key_message": "5 MySQL tables in listmap database.",
+      "layout_type": "table_grid",
+      "visual_focus": "ER-style table cards",
+      "text_density": "high"
+    },
+    {
+      "index": 8,
+      "role": "api",
+      "title": "API & Export Features",
+      "key_message": "REST API with role-based access and multi-format export.",
+      "layout_type": "two_column",
+      "visual_focus": "API table + export icons",
+      "text_density": "medium"
+    },
+    {
+      "index": 9,
+      "role": "security",
+      "title": "Security & Deployment",
+      "key_message": "Auth, rate limiting, audit log, Docker/Waitress/nginx.",
+      "layout_type": "two_column",
+      "visual_focus": "Security checklist + deployment options",
+      "text_density": "medium"
+    },
+    {
+      "index": 10,
+      "role": "limitations",
+      "title": "Limitations & Summary",
+      "key_message": "Known constraints and project status.",
+      "layout_type": "bullet_list",
+      "visual_focus": "Limitations list + closing",
+      "text_density": "medium"
+    }
+  ]
+}

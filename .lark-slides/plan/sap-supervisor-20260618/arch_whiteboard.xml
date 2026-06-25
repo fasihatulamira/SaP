@@ -1,0 +1,19 @@
+<whiteboard topLeftX="48" topLeftY="115" width="864" height="400">
+  <mermaid><![CDATA[
+flowchart TB
+    subgraph PL["Presentation Layer"]
+        B["Browser Dashboard\nHTML · CSS · Vanilla JS\nindex.html · app.js · html2pdf.js"]
+    end
+
+    subgraph AL["Application Layer"]
+        F["Flask App Server\nWaitress WSGI · app.py\nauth · rate limit · REST API\nexport_xlsx · audit log"]
+    end
+
+    subgraph DL["Data Layer"]
+        M[("MySQL 8 — listmap\ntopography · dted · landused\nsjung · audit_log")]
+    end
+
+    B -->|"HTTPS REST JSON"| F
+    F -->|"SQL via database.py"| M
+  ]]></mermaid>
+</whiteboard>

@@ -5,6 +5,23 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+# Standard Malaysian land-use categories (matches production listmap data)
+LANDUSE_SEED_DATA = [
+    (1, "HUTAN"),
+    (2, "PERTANIAN"),
+    (3, "PDG.TERNAK & RUMPUT"),
+    (4, "PERBANDARAN"),
+    (5, "KAW.DIBERSIHKAN"),
+    (6, "TIDAK DIUSAHAKAN"),
+    (7, "PAYA"),
+    (8, "PERLOMBONGAN"),
+    (9, "AIR"),
+    (10, "KAW.DIBERSIKAN"),
+    (11, "KAW.PERBANDARAN"),
+    (12, "LAIN-LAIN"),
+    (13, "TIDAK DI USAHAKAN"),
+]
+
 def populate_database():
     try:
         conn = mysql.connector.connect(
@@ -15,33 +32,21 @@ def populate_database():
             database=os.getenv("DB_NAME")
         )
         cursor = conn.cursor()
-        
-        # Check if landused table is empty
+
         cursor.execute("SELECT COUNT(*) FROM landused")
         cnt = cursor.fetchone()[0]
-        
+
         if cnt == 0:
-            print("landused table is empty. Populating mock categories...")
-            mock_landuse = [
-                (1, "Agriculture (Paddy, Palm Oil, Rubber)"),
-                (2, "Primary & Secondary Forest (Jungle, Reserves)"),
-                (3, "Residential Zone (Terraces, Apartments, Villages)"),
-                (4, "Commercial & Retail (Malls, Business Districts)"),
-                (5, "Industrial Area (Factories, Warehouses, Logistical Centers)"),
-                (6, "Water Bodies (Rivers, Lakes, Wetland, Reservoirs)"),
-                (7, "Recreational Parks (Open Spaces, Sports Complex, Gardens)"),
-                (8, "Infrastructure & Utilities (Substations, Treatment Plants)")
-            ]
-            
+            print("landused table is empty. Populating seed categories...")
             cursor.executemany(
                 "INSERT INTO landused (landused_id, category) VALUES (%s, %s)",
-                mock_landuse
+                LANDUSE_SEED_DATA
             )
             conn.commit()
-            print(f"Successfully inserted {len(mock_landuse)} records into landused table.")
+            print(f"Successfully inserted {len(LANDUSE_SEED_DATA)} records into landused table.")
         else:
             print(f"landused table already contains {cnt} records. Skipping population.")
-            
+
         conn.close()
     except Exception as e:
         print("Database population error:", e)

@@ -1,0 +1,107 @@
+[
+  {
+    "action": "block_replace",
+    "block_id": "bff",
+    "replacement": "<whiteboard topLeftX=\"48\" topLeftY=\"115\" width=\"864\" height=\"400\"><mermaid><![CDATA[\nflowchart TB\n    subgraph PL[\"Presentation Layer\"]\n        B[\"Browser Dashboard\\nHTML · CSS · Vanilla JS\\nindex.html · app.js · html2pdf.js\"]\n    end\n\n    subgraph AL[\"Application Layer\"]\n        F[\"Flask App Server\\nWaitress WSGI · app.py\\nauth · rate limit · REST API\\nexport_xlsx · audit log\"]\n    end\n\n    subgraph DL[\"Data Layer\"]\n        M[(\"MySQL 8 — listmap\\ntopography · dted · landused\\nsjung · audit_log\")]\n    end\n\n    B -->|\"HTTPS REST JSON\"| F\n    F -->|\"SQL via database.py\"| M\n  ]]></mermaid></whiteboard>"
+  },
+  {
+    "action": "block_replace",
+    "block_id": "bqi",
+    "replacement": "<shape type=\"rect\" topLeftX=\"0\" topLeftY=\"0\" width=\"0\" height=\"0\"><fill><fillColor color=\"rgba(0,0,0,0)\"/></fill><content/></shape>"
+  },
+  {
+    "action": "block_replace",
+    "block_id": "bdF",
+    "replacement": "<shape type=\"rect\" topLeftX=\"0\" topLeftY=\"0\" width=\"0\" height=\"0\"><fill><fillColor color=\"rgba(0,0,0,0)\"/></fill><content/></shape>"
+  },
+  {
+    "action": "block_replace",
+    "block_id": "bhh",
+    "replacement": "<line startX=\"0\" startY=\"0\" endX=\"0\" endY=\"0\"><border color=\"rgba(0,0,0,0)\"/></line>"
+  },
+  {
+    "action": "block_replace",
+    "block_id": "bhy",
+    "replacement": "<line startX=\"0\" startY=\"0\" endX=\"0\" endY=\"0\"><border color=\"rgba(0,0,0,0)\"/></line>"
+  },
+  {
+    "action": "block_replace",
+    "block_id": "bdp",
+    "replacement": "<line startX=\"0\" startY=\"0\" endX=\"0\" endY=\"0\"><border color=\"rgba(0,0,0,0)\"/></line>"
+  },
+  {
+    "action": "block_replace",
+    "block_id": "bqY",
+    "replacement": "<line startX=\"0\" startY=\"0\" endX=\"0\" endY=\"0\"><border color=\"rgba(0,0,0,0)\"/></line>"
+  },
+  {
+    "action": "block_replace",
+    "block_id": "bqH",
+    "replacement": "<line startX=\"0\" startY=\"0\" endX=\"0\" endY=\"0\"><border color=\"rgba(0,0,0,0)\"/></line>"
+  },
+  {
+    "action": "block_replace",
+    "block_id": "bfg",
+    "replacement": "<line startX=\"0\" startY=\"0\" endX=\"0\" endY=\"0\"><border color=\"rgba(0,0,0,0)\"/></line>"
+  },
+  {
+    "action": "block_replace",
+    "block_id": "bfm",
+    "replacement": "<shape type=\"rect\" topLeftX=\"0\" topLeftY=\"0\" width=\"0\" height=\"0\"><fill><fillColor color=\"rgba(0,0,0,0)\"/></fill><content/></shape>"
+  },
+  {
+    "action": "block_replace",
+    "block_id": "bqz",
+    "replacement": "<shape type=\"rect\" topLeftX=\"0\" topLeftY=\"0\" width=\"0\" height=\"0\"><fill><fillColor color=\"rgba(0,0,0,0)\"/></fill><content/></shape>"
+  },
+  {
+    "action": "block_replace",
+    "block_id": "bqB",
+    "replacement": "<shape type=\"rect\" topLeftX=\"0\" topLeftY=\"0\" width=\"0\" height=\"0\"><fill><fillColor color=\"rgba(0,0,0,0)\"/></fill><content/></shape>"
+  },
+  {
+    "action": "block_replace",
+    "block_id": "bht",
+    "replacement": "<shape type=\"rect\" topLeftX=\"0\" topLeftY=\"0\" width=\"0\" height=\"0\"><fill><fillColor color=\"rgba(0,0,0,0)\"/></fill><content/></shape>"
+  },
+  {
+    "action": "block_replace",
+    "block_id": "bfX",
+    "replacement": "<shape type=\"rect\" topLeftX=\"0\" topLeftY=\"0\" width=\"0\" height=\"0\"><fill><fillColor color=\"rgba(0,0,0,0)\"/></fill><content/></shape>"
+  },
+  {
+    "action": "block_replace",
+    "block_id": "bqs",
+    "replacement": "<shape type=\"rect\" topLeftX=\"0\" topLeftY=\"0\" width=\"0\" height=\"0\"><fill><fillColor color=\"rgba(0,0,0,0)\"/></fill><content/></shape>"
+  },
+  {
+    "action": "block_replace",
+    "block_id": "bhb",
+    "replacement": "<shape type=\"text\" topLeftX=\"0\" topLeftY=\"0\" width=\"0\" height=\"0\"><content/></shape>"
+  },
+  {
+    "action": "block_replace",
+    "block_id": "bdC",
+    "replacement": "<shape type=\"text\" topLeftX=\"0\" topLeftY=\"0\" width=\"0\" height=\"0\"><content/></shape>"
+  },
+  {
+    "action": "block_replace",
+    "block_id": "bhZ",
+    "replacement": "<shape type=\"text\" topLeftX=\"0\" topLeftY=\"0\" width=\"0\" height=\"0\"><content/></shape>"
+  },
+  {
+    "action": "block_replace",
+    "block_id": "bhe",
+    "replacement": "<shape type=\"text\" topLeftX=\"0\" topLeftY=\"0\" width=\"0\" height=\"0\"><content/></shape>"
+  },
+  {
+    "action": "block_replace",
+    "block_id": "bfc",
+    "replacement": "<shape type=\"text\" topLeftX=\"0\" topLeftY=\"0\" width=\"0\" height=\"0\"><content/></shape>"
+  },
+  {
+    "action": "block_replace",
+    "block_id": "bfv",
+    "replacement": "<shape type=\"text\" topLeftX=\"0\" topLeftY=\"0\" width=\"0\" height=\"0\"><content/></shape>"
+  }
+]

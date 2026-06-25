@@ -1,0 +1,180 @@
+<title>SaP LISTMAP — User Guide</title>
+
+<callout emoji="bulb" background-color="light-blue">This guide explains how to use <b>SaP LISTMAP</b> (Direktori Lembaran &amp; Jenis Peta) — the web portal for browsing cartography datasets, selecting records, previewing a report, and exporting to Print / PDF / Excel.</callout>
+
+<h1>1. What is SaP LISTMAP?</h1>
+<p>SaP LISTMAP is a <b>Data Selection &amp; Export Center</b> for cartography records. You can search four data categories, build a combined specification report, and export it for printing or sharing.</p>
+
+<table>
+  <thead><tr><th>Category</th><th>Tab name</th><th>What it contains</th></tr></thead>
+  <tbody>
+    <tr><td>Topography</td><td>Topography</td><td>Map sheet number, name, scale, release year</td></tr>
+    <tr><td>Land use</td><td>Land Used</td><td>Land classification categories</td></tr>
+    <tr><td>DTED</td><td>DTED Elevation</td><td>Digital Terrain Elevation Data files and levels</td></tr>
+    <tr><td>Sjung</td><td>Sjung</td><td>Sjung map sheet records</td></tr>
+  </tbody>
+</table>
+
+<hr/>
+
+<h1>2. Before you start</h1>
+<ul>
+  <li><b>Browser:</b> Use Chrome, Edge, or Firefox (latest version recommended).</li>
+  <li><b>URL:</b> Open the app address provided by your administrator (default local: <code>http://127.0.0.1:5000</code>).</li>
+  <li><b>Credentials:</b> You need a username and password assigned by your admin (stored in server <code>.env</code> configuration).</li>
+  <li><b>Session:</b> You stay signed in for <b>30 minutes</b> of inactivity; after that you must sign in again.</li>
+</ul>
+
+<hr/>
+
+<h1>3. Sign in</h1>
+<ol>
+  <li>Open the application URL in your browser.</li>
+  <li>If not signed in, you are redirected to the <b>SaP LISTMAP</b> login page.</li>
+  <li>Enter your <b>Username</b> and <b>Password</b>.</li>
+  <li>Click <b>Sign In</b>.</li>
+</ol>
+<callout emoji="warning" background-color="light-yellow">If login fails, check caps lock and credentials. After several failed attempts, contact your administrator. Failed logins may be recorded in the audit log.</callout>
+
+<hr/>
+
+<h1>4. Dashboard layout</h1>
+<p>After login, the main screen has three areas:</p>
+
+<table>
+  <thead><tr><th>Area</th><th>Location</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td><b>Header</b></td><td>Top bar</td><td>Report title, your username/role, theme toggle, Logout (and Audit for admins)</td></tr>
+    <tr><td><b>Left panel</b></td><td>Selector panel</td><td>Category tabs, search, filters, data tables, row selection</td></tr>
+    <tr><td><b>Right panel</b></td><td>Document Preview</td><td>Live report preview and export buttons (Clear, Print, Excel, Generate PDF)</td></tr>
+  </tbody>
+</table>
+
+<hr/>
+
+<h1>5. User roles</h1>
+<table>
+  <thead><tr><th>Role</th><th>Can do</th><th>Cannot do</th></tr></thead>
+  <tbody>
+    <tr><td><b>admin</b></td><td>Browse, select, export, view <b>Audit</b> log</td><td>—</td></tr>
+    <tr><td><b>user</b></td><td>Browse, select, export (Print / PDF / Excel)</td><td>View audit log</td></tr>
+  </tbody>
+</table>
+<p>Your role appears as a badge next to your username in the header.</p>
+
+<hr/>
+
+<h1>6. Step-by-step: build and export a report</h1>
+
+<h2>Step 1 — Choose a category tab</h2>
+<p>In the left panel, click one of the four tabs:</p>
+<ul>
+  <li><b>Topography</b> — map sheets with scale and release year</li>
+  <li><b>Land Used</b> — land coverage classifications</li>
+  <li><b>DTED Elevation</b> — elevation model files</li>
+  <li><b>Sjung</b> — Sjung map sheets</li>
+</ul>
+
+<h2>Step 2 — Search and filter (optional)</h2>
+<ul>
+  <li><b>Search box</b> — type sheet number, name, category, or DTED path; results update automatically (debounced).</li>
+  <li><b>Topography:</b> filter by <b>Release Year</b> dropdown.</li>
+  <li><b>DTED:</b> filter by <b>Level</b> dropdown.</li>
+  <li><b>Rows per page:</b> choose 8, 10, or 15 at the top of the left panel.</li>
+  <li>Use <b>◀ ▶</b> pagination buttons to move between pages.</li>
+</ul>
+
+<h2>Step 3 — Select records</h2>
+<ul>
+  <li>Tick the <b>checkbox</b> on each row you want in the report, <b>or</b> click the row itself.</li>
+  <li>Click <b>Select Page</b> to select all rows on the current page for that category.</li>
+  <li>Repeat for other category tabs — selections are kept across tabs.</li>
+  <li>Selected rows stay saved in your browser session even if you refresh the page.</li>
+</ul>
+
+<h2>Step 4 — Review the document preview</h2>
+<p>The right panel shows a live <b>Document Preview</b> (A4-style report):</p>
+<ul>
+  <li><b>Report Title</b> — edit in the header field (default: <i>SaP LISTMAP DATA SPECIFICATION REPORT</i>).</li>
+  <li><b>Ref</b> — auto-generated reference (e.g. <code>LM-2026-XXXX</code>) when you first select records.</li>
+  <li><b>Date</b> — today&apos;s date on the report header.</li>
+  <li>Sections appear for each category that has selected items.</li>
+</ul>
+<p>If nothing is selected, the preview shows <i>Your Document is Empty</i> and export buttons are disabled.</p>
+
+<h2>Step 5 — Export</h2>
+<table>
+  <thead><tr><th>Button</th><th>Action</th></tr></thead>
+  <tbody>
+    <tr><td><b>Clear</b></td><td>Remove all selections and reset the report reference</td></tr>
+    <tr><td><b>Print</b></td><td>Open the browser print dialog (you can choose &quot;Save as PDF&quot; as the printer)</td></tr>
+    <tr><td><b>Excel</b></td><td>Download a formatted <code>.xlsx</code> workbook with all selected records</td></tr>
+    <tr><td><b>Generate PDF</b></td><td>Download a PDF file generated in the browser from the preview</td></tr>
+  </tbody>
+</table>
+<callout emoji="tip" background-color="light-green">Tip: Use <b>Excel</b> when you need editable tabular data; use <b>Generate PDF</b> or <b>Print</b> for a formal printable report layout.</callout>
+
+<hr/>
+
+<h1>7. Workflow overview</h1>
+<whiteboard type="mermaid"><![CDATA[flowchart LR
+    A[Open URL] --> B[Sign In]
+    B --> C[Pick Category Tab]
+    C --> D[Search / Filter]
+    D --> E[Select Rows]
+    E --> F{More categories?}
+    F -->|Yes| C
+    F -->|No| G[Review Preview]
+    G --> H{Export type}
+    H --> I[Print]
+    H --> J[PDF]
+    H --> K[Excel]
+]]></whiteboard>
+
+<hr/>
+
+<h1>8. Admin only — Audit log</h1>
+<p>If you are signed in as <b>admin</b>, click the <b>Audit</b> button in the header to open the audit log modal.</p>
+<p>It shows recent actions such as:</p>
+<ul>
+  <li>Report created</li>
+  <li>Excel / PDF export</li>
+  <li>Print</li>
+  <li>Clear selection</li>
+  <li>Failed login attempts</li>
+</ul>
+<p>Columns: Time, User, Role, Action, Ref, Items, Details. Click the refresh icon to reload the list.</p>
+
+<hr/>
+
+<h1>9. Other controls</h1>
+<ul>
+  <li><b>Theme toggle</b> (moon icon) — switch between light and dark mode.</li>
+  <li><b>Logout</b> — ends your session and returns to the login page.</li>
+</ul>
+
+<hr/>
+
+<h1>10. Troubleshooting</h1>
+<table>
+  <thead><tr><th>Problem</th><th>What to try</th></tr></thead>
+  <tbody>
+    <tr><td>Redirected to login while working</td><td>Session expired (30 min idle). Sign in again.</td></tr>
+    <tr><td>&quot;Failed to load records&quot;</td><td>Check network; ensure the server and MySQL database are running.</td></tr>
+    <tr><td>Export buttons disabled</td><td>Select at least one record in any category.</td></tr>
+    <tr><td>PDF download fails</td><td>Try Print → Save as PDF, or use Excel export instead.</td></tr>
+    <tr><td>Cannot see Audit button</td><td>Only <b>admin</b> role has access; ask your administrator.</td></tr>
+  </tbody>
+</table>
+
+<hr/>
+
+<h1>11. Quick reference checklist</h1>
+<checkbox done="false">Open app URL and sign in</checkbox>
+<checkbox done="false">Set report title in the header (optional)</checkbox>
+<checkbox done="false">Browse each category tab and select records</checkbox>
+<checkbox done="false">Confirm preview on the right panel</checkbox>
+<checkbox done="false">Export via Print, PDF, or Excel</checkbox>
+<checkbox done="false">Sign out when finished (shared computers)</checkbox>
+
+<p><em>Document version: June 2026 · SaP LISTMAP User Guide</em></p>

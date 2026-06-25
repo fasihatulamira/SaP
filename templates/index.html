@@ -32,12 +32,33 @@
                 <input type="text" id="doc-title-input" class="search-input" value="SaP LISTMAP DATA SPECIFICATION REPORT" style="padding: 0.5rem 0.75rem; font-size: 0.85rem; height: auto;">
             </div>
             
+            {% if auth_enabled and username %}
+            <div class="user-badge" title="Signed in as {{ username }} ({{ user_role }})">
+                <i class="fas fa-user-circle"></i>
+                <span>{{ username }}</span>
+                <span class="role-tag role-{{ user_role }}">{{ user_role }}</span>
+            </div>
+            {% endif %}
+            {% if user_role == 'admin' %}
+            <button type="button" id="btn-audit-log" class="btn btn-secondary btn-logout" title="View audit log">
+                <i class="fas fa-clipboard-list"></i> Audit
+            </button>
+            {% endif %}
             <!-- Theme Toggle -->
             <button id="theme-toggle" class="btn-theme-toggle" title="Toggle Light/Dark Theme">
                 <i class="fas fa-moon"></i>
             </button>
+            {% if auth_enabled %}
+            <form method="post" action="{{ url_for('logout') }}" class="logout-form">
+                <button type="submit" class="btn btn-secondary btn-logout" title="Sign out">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </form>
+            {% endif %}
         </div>
     </header>
+
+    <div id="status-banner" class="status-banner hidden" role="alert" aria-live="polite"></div>
 
     <!-- Main Content App Grid -->
     <main class="app-container">
@@ -57,9 +78,18 @@
                     <i class="fas fa-map-marked-alt"></i> DTED Elevation
                 </button>
                 <button class="tab-btn" data-tab="sjungu">
-                    <i class="fas fa-map"></i> Sjungu
+                    <i class="fas fa-map"></i> Sjung
                 </button>
             </nav>
+
+            <div class="pagination-size-bar">
+                <label for="page-size-select" class="pagination-size-label">Rows per page:</label>
+                <select id="page-size-select" class="filter-select pagination-size-select" aria-label="Rows per page">
+                    <option value="8">8</option>
+                    <option value="10" selected>10</option>
+                    <option value="15">15</option>
+                </select>
+            </div>
 
             <!-- CATEGORY 1: Topography Selector Pane -->
             <div id="topography-content" class="category-content active">
@@ -127,8 +157,9 @@
                         <thead>
                             <tr>
                                 <th style="width: 8%;">Select</th>
-                                <th style="width: 22%;">Land Used ID</th>
-                                <th style="width: 70%;">Category Name / Details</th>
+                                <th style="width: 10%;">No.</th>
+                                <th style="width: 62%;">Category</th>
+                                <th style="width: 20%;">Land Used ID</th>
                             </tr>
                         </thead>
                         <tbody id="land-table-body">
@@ -170,7 +201,8 @@
                         <thead>
                             <tr>
                                 <th style="width: 8%;">Select</th>
-                                <th style="width: 72%;">Elevation ID / Path Name</th>
+                                <th style="width: 10%;">No.</th>
+                                <th style="width: 62%;">Elevation ID / Path Name</th>
                                 <th style="width: 20%;">DTED Level</th>
                             </tr>
                         </thead>
@@ -189,7 +221,7 @@
                 </div>
             </div>
 
-            <!-- CATEGORY 4: Sjungu Selector Pane -->
+            <!-- CATEGORY 4: Sjung Selector Pane -->
             <div id="sjungu-content" class="category-content">
                 <div class="table-controls">
                     <div class="search-input-wrapper">
@@ -202,7 +234,7 @@
                     <button class="btn btn-outline" id="sjungu-select-all">
                         <i class="far fa-square"></i> Select Page
                     </button>
-                    <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">Category 4: Sjungu Database</span>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">Category 4: Sjung Database</span>
                 </div>
 
                 <div class="table-wrapper">
@@ -244,6 +276,9 @@
                     <button class="btn btn-primary" id="btn-print" title="Print document or save as PDF via browser">
                         <i class="fas fa-print"></i> Print
                     </button>
+                    <button class="btn btn-excel" id="btn-xlsx" title="Export selected records as Excel">
+                        <i class="fas fa-file-excel"></i> Excel
+                    </button>
                     <button class="btn btn-primary" id="btn-pdf" style="background: linear-gradient(135deg, var(--accent), var(--accent-hover)); box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);" title="Direct PDF compilation & download">
                         <i class="fas fa-file-pdf"></i> Generate PDF
                     </button>
@@ -261,7 +296,7 @@
                     </div>
                     <div class="doc-meta">
                         <div><strong>Date:</strong> <span id="doc-date">June 20, 2026</span></div>
-                        <div><strong>Ref:</strong> LM-2026-9042A</div>
+                        <div><strong>Ref:</strong> <span id="doc-ref">—</span></div>
                     </div>
                 </div>
 
@@ -278,7 +313,7 @@
                 <!-- Report A4 Footer -->
                 <div class="doc-footer">
                     <div>© 2026 SaP Spatial Mapping Portal. Confidentially Restricted.</div>
-                    <div>Page 1 of 1</div>
+                    <div id="doc-page-info">Page 1 of 1</div>
                 </div>
 
             </div>
@@ -286,6 +321,42 @@
         </section>
         
     </main>
+
+    <!-- Audit Log Modal (admin only) -->
+    <div id="audit-modal" class="modal hidden" role="dialog" aria-labelledby="audit-modal-title" aria-modal="true">
+        <div class="modal-backdrop" id="audit-modal-backdrop"></div>
+        <div class="modal-card glass-card">
+            <div class="modal-header">
+                <h2 id="audit-modal-title"><i class="fas fa-clipboard-list"></i> Audit Log</h2>
+                <div class="modal-header-actions">
+                    <button type="button" id="audit-modal-refresh" class="btn btn-secondary" title="Refresh audit log">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    <button type="button" id="audit-modal-close" class="btn btn-secondary" aria-label="Close audit log">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <table class="data-table audit-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>User</th>
+                            <th>Role</th>
+                            <th>Action</th>
+                            <th>Ref</th>
+                            <th>Items</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody id="audit-table-body">
+                        <tr><td colspan="7" class="loading-row">Loading audit entries...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
     <!-- JS Dependencies -->
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>

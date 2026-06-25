@@ -1,0 +1,45 @@
+<slide xmlns="http://www.larkoffice.com/sml/2.0">
+  <style><fill><fillColor color="rgba(252, 252, 253, 1)"/></fill></style>
+  <data>
+    <shape type="rect" topLeftX="0" topLeftY="0" width="10" height="540"><fill><fillColor color="rgba(15, 118, 110, 1)"/></fill><content/></shape>
+    <shape type="ellipse" topLeftX="780" topLeftY="-40" width="200" height="200"><fill><fillColor color="rgba(204, 251, 241, 1)"/></fill><content/></shape>
+    <shape type="ellipse" topLeftX="820" topLeftY="400" width="160" height="160"><fill><fillColor color="rgba(240, 253, 250, 1)"/></fill><content/></shape>
+    <shape type="ellipse" topLeftX="-60" topLeftY="420" width="140" height="140"><fill><fillColor color="rgba(236, 253, 245, 1)"/></fill><content/></shape>
+    <shape type="ellipse" topLeftX="48" topLeftY="28" width="52" height="52"><fill><fillColor color="rgba(204, 251, 241, 1)"/></fill><content/></shape>
+    <icon iconType="iconpark/People/user.svg" topLeftX="59" topLeftY="39" width="30" height="30"><fill><fillColor color="rgba(15, 118, 110, 1)"/></fill></icon>
+    <shape type="text" topLeftX="115" topLeftY="32" width="800" height="46"><content textType="title" fontSize="34" fontFamily="思源黑体" color="rgba(15, 23, 42, 1)" bold="true" textAlign="left"><p>Use Case Diagram</p></content></shape>
+    <shape type="text" topLeftX="115" topLeftY="78" width="800" height="28"><content fontSize="14" fontFamily="思源黑体" color="rgba(100, 116, 139, 1)" textAlign="left"><p>Actors and system interactions for SaP LISTMAP</p></content></shape>
+    <whiteboard topLeftX="40" topLeftY="115" width="880" height="395">
+      <mermaid><![CDATA[
+flowchart LR
+    U((GIS Staff))
+    A((Administrator))
+
+    subgraph SYS["SaP LISTMAP System"]
+        direction TB
+        UC1([Login / Logout])
+        UC2([Browse Records])
+        UC3([Search and Filter])
+        UC4([Select Records])
+        UC5([Preview Report])
+        UC6([Export Excel / PDF / Print])
+        UC7([View Audit Log])
+    end
+
+    U --> UC1
+    U --> UC2
+    U --> UC3
+    U --> UC4
+    U --> UC5
+    U --> UC6
+    A --> UC1
+    A --> UC2
+    A --> UC3
+    A --> UC4
+    A --> UC5
+    A --> UC6
+    A --> UC7
+      ]]></mermaid>
+    </whiteboard>
+  </data>
+</slide>

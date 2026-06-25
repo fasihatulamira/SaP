@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.docker
+.git
+.gitignore
+__pycache__
+*.pyc
+.pytest_cache
+.venv
+venv
+README.md
+DEPLOYMENT.md
+terminals
