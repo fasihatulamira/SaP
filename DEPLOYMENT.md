@@ -43,9 +43,23 @@ Save → Render redeploys. On startup the app creates tables automatically (`ens
 
 **3. Confirm tables**
 
-- Open the site, log in, browse categories (empty lists are OK until you add/seed data).
+- Open the site, log in, browse categories.
 - Or in Render **Shell**: `python init_schema.py`
-- Optional seed (if you have sample data scripts): `python populate_data.py`
+
+**4. Load data (empty tables show blank lists)**
+
+- **Demo data (fast):** Render Shell → `python populate_data.py` → refresh the site.
+- **Copy your local MySQL data** (from this PC, using Aiven as remote):
+
+  ```powershell
+  $env:REMOTE_DB_HOST="..."
+  $env:REMOTE_DB_PORT="..."
+  $env:REMOTE_DB_USER="..."
+  $env:REMOTE_DB_PASSWORD="..."
+  $env:REMOTE_DB_NAME="defaultdb"
+  $env:REMOTE_DB_SSL="true"
+  python copy_local_to_remote.py
+  ```
 
 ### Alternative: MySQL as a Render Private Service (paid disk)
 
