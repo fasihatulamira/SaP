@@ -413,7 +413,7 @@ def create_audit_with_document():
     report_title = (request.form.get("report_title") or "").strip()
     filename = _safe_filename(
         request.form.get("filename") or uploaded.filename,
-        fallback=f"SaP_ListMap_{action}{ALLOWED_DOCUMENT_MIME_TYPES[mime_type]}",
+        fallback=f"GIS_Info_{action}{ALLOWED_DOCUMENT_MIME_TYPES[mime_type]}",
     )
 
     details = {
@@ -474,12 +474,12 @@ def export_xlsx():
         return jsonify({"error": "No records selected for export."}), 400
 
     report_ref = data.get("report_ref")
-    report_title = data.get("report_title", "SaP LISTMAP DATA SPECIFICATION REPORT")
+    report_title = data.get("report_title", "EKSESAIS LATIHAN TAHUN 2026")
 
     try:
         buffer = build_export_workbook(report_title, report_ref, selections)
         file_data = buffer.getvalue()
-        filename = f"SaP_ListMap_Export_{report_ref or 'report'}.xlsx"
+        filename = f"GIS_Info_Export_{report_ref or 'report'}.xlsx"
         mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         audit_id = log_event(
             "export_xlsx",

@@ -1,5 +1,22 @@
 # Decision Log
 
+## 2026-08-19 — GIS Info branding + KEMBARAN I document format
+
+### Decision
+Rebrand the app to **GIS Info** and match printable/PDF output to `KEMBARAN I - GIS INFO.docx` (Times New Roman 12pt; red `#EE0000` = editable/input data).
+
+### Why
+User wants public-facing title/URL naming as GIS Info, and export documents that follow the official Word kembaran layout.
+
+### Design
+1. UI titles (browser, header, login) → `GIS Info`.
+2. Document fixed title: `SENARAI LEMBARAN DAN JENIS PETA` (black, bold, underline).
+3. Editable subtitle from header input (red) — default `EKSESAIS LATIHAN TAHUN 2026`.
+4. Sections/tables match Word: Raster Topography, Landused, DTED; data cells red; TOTAL row black label + red count.
+5. Render public URL rename is done in Render Dashboard → Settings → Name (e.g. `gis-info`), not only in code.
+
+---
+
 ## 2026-08-19 — External MySQL for Render (no template)
 
 ### Decision

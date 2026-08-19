@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Map Sheet & Map Type Directory</title>
+    <title>GIS Info</title>
     
     <!-- CSS Dependencies -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
@@ -21,15 +21,15 @@
         <div class="brand">
             <div class="brand-icon"><i class="fas fa-layer-group"></i></div>
             <div>
-                <h1>Map Sheet & Map Type Directory</h1>
+                <h1>GIS Info</h1>
                 <p style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">DATA SELECTION & EXPORT CENTER</p>
             </div>
         </div>
         <div class="header-controls">
-            <!-- Customizable Title for PDF -->
+            <!-- Editable red subtitle line on the Word-format document -->
             <div class="search-input-wrapper" style="min-width: 480px; display: flex; align-items: center; gap: 0.5rem;">
-                <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; white-space: nowrap;">Report Title:</span>
-                <input type="text" id="doc-title-input" class="search-input" value="SaP LISTMAP DATA SPECIFICATION REPORT" style="padding: 0.5rem 0.75rem; font-size: 0.85rem; height: auto;">
+                <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; white-space: nowrap;">Document subtitle:</span>
+                <input type="text" id="doc-title-input" class="search-input" value="EKSESAIS LATIHAN TAHUN 2026" style="padding: 0.5rem 0.75rem; font-size: 0.85rem; height: auto;" title="Shown in red on the document (editable fields)">
             </div>
             
             {% if auth_enabled and username %}
@@ -343,37 +343,16 @@
                 </div>
             </div>
 
-            <!-- Floating A4 Printable Report Card -->
+            <!-- KEMBARAN I — GIS INFO (Word-format printable document) -->
             <div class="document-frame" id="printable-document">
-                
-                <!-- Report A4 Header -->
-                <div class="doc-header">
-                    <div class="doc-logo">
-                        <h2>SaP LISTMAP</h2>
-                        <span>Unified Cartography Report</span>
-                    </div>
-                    <div class="doc-meta">
-                        <div><strong>Date:</strong> <span id="doc-date">June 20, 2026</span></div>
-                        <div><strong>Ref:</strong> <span id="doc-ref">—</span></div>
-                    </div>
+                <div class="doc-main-title">SENARAI LEMBARAN DAN JENIS PETA</div>
+                <div class="doc-subtitle doc-input-text" id="document-title-header">
+                    EKSESAIS LATIHAN TAHUN 2026
                 </div>
 
-                <!-- Report Title (Editable dynamically) -->
-                <div class="doc-title" id="document-title-header">
-                    SaP LISTMAP DATA SPECIFICATION REPORT
-                </div>
-
-                <!-- Combined Selection Contents -->
                 <div class="doc-content" id="doc-content">
                     <!-- Loaded dynamically via state selection -->
                 </div>
-
-                <!-- Report A4 Footer -->
-                <div class="doc-footer">
-                    <div>© 2026 SaP Spatial Mapping Portal. Confidentially Restricted.</div>
-                    <div id="doc-page-info">Page 1 of 1</div>
-                </div>
-
             </div>
 
         </section>

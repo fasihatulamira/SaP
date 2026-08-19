@@ -631,7 +631,7 @@ tr.selected .custom-checkbox i {
 /* A4 Printable Sheet Preview Card */
 .document-frame {
     background: #ffffff;
-    color: #1e293b;
+    color: #000000;
     border-radius: var(--radius-md);
     box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
     width: 100%;
@@ -642,7 +642,9 @@ tr.selected .custom-checkbox i {
     flex-direction: column;
     position: relative;
     overflow: hidden;
-    font-size: 0.85rem;
+    font-family: "Times New Roman", Times, serif;
+    font-size: 12pt;
+    line-height: 1.35;
     border: 1px solid rgba(0, 0, 0, 0.15);
     transition: var(--transition);
 }
@@ -674,63 +676,43 @@ body.light-theme .document-frame {
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
 }
 
-.doc-header {
-    border-bottom: 2px solid #334155;
-    padding-bottom: 1rem;
-    margin-bottom: 1.5rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-}
-
-.doc-logo {
-    display: flex;
-    flex-direction: column;
-}
-
-.doc-logo h2 {
-    font-size: 1.3rem;
-    font-weight: 800;
-    color: #0f172a;
-    letter-spacing: -0.5px;
-}
-
-.doc-logo span {
-    font-size: 0.7rem;
-    color: #64748b;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
-.doc-meta {
-    text-align: right;
-    font-size: 0.75rem;
-    color: #475569;
-}
-
-.doc-meta div {
-    margin-bottom: 0.2rem;
-}
-
-.doc-title {
-    font-size: 1.25rem;
+/* KEMBARAN I — fixed title (black) + editable subtitle (red) */
+.doc-main-title {
+    font-family: "Times New Roman", Times, serif;
+    font-size: 12pt;
     font-weight: 700;
-    color: #0f172a;
-    margin-bottom: 1.5rem;
     text-align: center;
-    font-family: 'Outfit', sans-serif;
+    text-decoration: underline;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    color: #000000;
+    margin: 0 0 0.25rem;
+}
+
+.doc-subtitle {
+    font-family: "Times New Roman", Times, serif;
+    font-size: 12pt;
+    font-weight: 700;
+    text-align: center;
+    text-decoration: underline;
+    text-transform: uppercase;
+    margin: 0 0 1.25rem;
+}
+
+.doc-input-text {
+    color: #EE0000 !important;
+    font-family: "Times New Roman", Times, serif;
+    font-size: 12pt;
 }
 
 .doc-content {
     flex-grow: 1;
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1.25rem;
     overflow-y: auto;
     padding-right: 5px;
+    font-family: "Times New Roman", Times, serif;
+    font-size: 12pt;
 }
 
 /* Printable Document Tables */
@@ -740,7 +722,7 @@ body.light-theme .document-frame {
 }
 
 .doc-section-follow {
-    margin-top: 1rem;
+    margin-top: 0.75rem;
 }
 
 .doc-table tr {
@@ -749,60 +731,67 @@ body.light-theme .document-frame {
 }
 
 .doc-section-title {
-    font-size: 0.95rem;
+    font-family: "Times New Roman", Times, serif;
+    font-size: 12pt;
     font-weight: 700;
-    color: #1e293b;
-    border-bottom: 1px solid #cbd5e1;
-    padding-bottom: 0.35rem;
-    margin-bottom: 0.75rem;
-    font-family: 'Outfit', sans-serif;
-    display: flex;
-    justify-content: space-between;
+    font-style: italic;
+    text-decoration: underline;
+    color: #000000;
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 0.5rem;
+    display: block;
 }
 
 .doc-section-count {
-    font-size: 0.8rem;
-    color: #64748b;
-    font-weight: 500;
+    display: none;
 }
 
 .doc-table {
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 1rem;
-    font-size: 0.8rem;
+    margin-bottom: 0.75rem;
+    font-family: "Times New Roman", Times, serif;
+    font-size: 12pt;
 }
 
 .doc-table th {
-    background: #f1f5f9;
-    color: #334155;
+    background: #ffffff;
+    color: #000000;
     font-weight: 700;
-    padding: 6px 10px;
-    border: 1px solid #cbd5e1;
-    text-align: left;
+    font-family: "Times New Roman", Times, serif;
+    font-size: 12pt;
+    padding: 4px 6px;
+    border: 1px solid #000000;
+    text-align: center;
+    text-transform: uppercase;
 }
 
 .doc-table td {
-    padding: 6px 10px;
-    border: 1px solid #e2e8f0;
-    color: #334155;
+    padding: 4px 6px;
+    border: 1px solid #000000;
+    color: #000000;
+    font-family: "Times New Roman", Times, serif;
+    font-size: 12pt;
+    text-align: center;
 }
 
 .doc-table tbody tr:nth-child(even):not(.doc-total-row) {
-    background: #f8fafc;
+    background: #ffffff;
 }
 
 .doc-table tr.doc-total-row td {
     font-weight: 700;
-    background: #f1f5f9;
-    border-top: 2px solid #cbd5e1;
-    color: #1e293b;
+    background: #ffffff;
+    border: 1px solid #000000;
+    color: #000000;
+    text-align: center;
+    text-transform: uppercase;
 }
 
 .doc-table tr.doc-total-row td:first-child {
     text-align: center;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0;
 }
 
 .doc-table tr.doc-total-row td:last-child {
@@ -810,13 +799,7 @@ body.light-theme .document-frame {
 }
 
 .doc-footer {
-    border-top: 1px solid #cbd5e1;
-    padding-top: 10px;
-    margin-top: auto;
-    font-size: 0.7rem;
-    color: #64748b;
-    display: flex;
-    justify-content: space-between;
+    display: none;
 }
 
 /* Login page */
@@ -1134,7 +1117,8 @@ body.light-theme .status-banner.success {
     body {
         background: #ffffff !important;
         color: #000000 !important;
-        font-size: 11pt !important;
+        font-family: "Times New Roman", Times, serif !important;
+        font-size: 12pt !important;
         padding: 0 !important;
         margin: 0 !important;
         overflow: visible !important;
@@ -1171,6 +1155,8 @@ body.light-theme .status-banner.success {
         aspect-ratio: auto !important;
         overflow: visible !important;
         color: #000000 !important;
+        font-family: "Times New Roman", Times, serif !important;
+        font-size: 12pt !important;
     }
     
     .doc-content {
@@ -1178,15 +1164,21 @@ body.light-theme .status-banner.success {
         padding-right: 0 !important;
         display: block !important;
     }
-    
-    .doc-header {
-        border-bottom: 2px solid #000000 !important;
-        margin-bottom: 20px !important;
+
+    .doc-main-title,
+    .doc-subtitle,
+    .doc-section-title,
+    .doc-table,
+    .doc-table th,
+    .doc-table td {
+        font-family: "Times New Roman", Times, serif !important;
+        font-size: 12pt !important;
     }
-    
-    .doc-title {
-        color: #000000 !important;
-        margin-bottom: 25px !important;
+
+    .doc-input-text {
+        color: #EE0000 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
     }
     
     .doc-section {
@@ -1208,7 +1200,7 @@ body.light-theme .status-banner.success {
     }
     
     .doc-table th {
-        background: #e2e8f0 !important;
+        background: #ffffff !important;
         color: #000000 !important;
         border: 1px solid #000000 !important;
         -webkit-print-color-adjust: exact !important;
@@ -1216,21 +1208,35 @@ body.light-theme .status-banner.success {
     }
     
     .doc-table td {
-        border: 1px solid #94a3b8 !important;
+        border: 1px solid #000000 !important;
         color: #000000 !important;
+    }
+    
+    .doc-table tr.doc-total-row td {
+        background: #ffffff !important;
+        color: #000000 !important;
+        border: 1px solid #000000 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    .doc-table tr.doc-total-row td.doc-input-text {
+        color: #EE0000 !important;
     }
 
     .doc-table tr.doc-total-row td {
         font-weight: 700 !important;
-        background: #e2e8f0 !important;
+        background: #ffffff !important;
         border: 1px solid #000000 !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
     }
     
     .doc-section-title {
-        border-bottom: 1.5px solid #000000 !important;
+        border-bottom: none !important;
         color: #000000 !important;
+        font-style: italic !important;
+        text-decoration: underline !important;
         page-break-after: avoid;
         margin-top: 0 !important;
     }
@@ -1240,15 +1246,12 @@ body.light-theme .status-banner.success {
     }
     
     .doc-footer {
-        border-top: 1px solid #000000 !important;
-        position: static;
-        margin-top: 20px;
-        padding-top: 5px;
+        display: none !important;
     }
     
     /* Configures print margin and size */
     @page {
         size: A4;
-        margin: 20mm;
+        margin: 25.4mm; /* 1 inch like the Word template */
     }
 }

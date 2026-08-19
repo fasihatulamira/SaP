@@ -1,8 +1,9 @@
 // Application state
-const SELECTION_STORAGE_KEY = "sap_listmap_selections";
-const PAGE_SIZE_STORAGE_KEY = "sap_listmap_page_size";
+const SELECTION_STORAGE_KEY = "gis_info_selections";
+const PAGE_SIZE_STORAGE_KEY = "gis_info_page_size";
 const PAGE_SIZE_OPTIONS = [8, 10, 15];
 const DEFAULT_PAGE_SIZE = 10;
+const DEFAULT_DOC_SUBTITLE = "EKSESAIS LATIHAN TAHUN 2026";
 
 const state = {
     records: {
@@ -511,7 +512,7 @@ async function archiveAuditDocument(action, blob, filename) {
     formData.append("item_count", String(itemCount));
     formData.append(
         "report_title",
-        DOM.docTitleInput.value.trim() || "SaP LISTMAP DATA SPECIFICATION REPORT"
+        DOM.docTitleInput.value.trim() || DEFAULT_DOC_SUBTITLE
     );
     formData.append("filename", filename);
     formData.append("mime_type", blob.type || "application/pdf");
@@ -808,7 +809,7 @@ function renderDocumentPreview() {
             <div class="empty-state">
                 <div class="empty-state-icon"><i class="fas fa-file-invoice"></i></div>
                 <h3>Your Document is Empty</h3>
-                <p>Select records from the categories in the left panel to compile your customized map & topography report.</p>
+                <p>Select records from the categories in the left panel to compile your GIS Info document.</p>
             </div>
         `;
         DOM.btnClearSelection.disabled = true;
@@ -830,46 +831,47 @@ function renderDocumentPreview() {
     let html = "";
 
     if (selectedTopo.length > 0 || selectedSjungu.length > 0) {
-        const totalCount = selectedTopo.length + selectedSjungu.length;
         const totalLabel = formatTopoSjungTotal(selectedTopo.length, selectedSjungu.length);
+        let rowNum = 0;
         html += `
             <div class="doc-section">
-                <div class="doc-section-title">
-                    <span>1. TOPOGRAPHY & SJUNG RECORDS</span>
-                    <span class="doc-section-count">${totalCount} item(s)</span>
-                </div>
+                <div class="doc-section-title">Raster Topography</div>
                 <table class="doc-table">
                     <thead>
                         <tr>
-                            <th style="width: 8%; text-align: center;">No.</th>
-                            <th style="width: 22%;">Sheet Number</th>
-                            <th style="width: 40%;">Sheet Name</th>
-                            <th style="width: 15%;">Scale</th>
-                            <th style="width: 15%;">Year</th>
+                            <th>NUM.</th>
+                            <th>SHEET NUM.</th>
+                            <th>SHEET NAME</th>
+                            <th>SHEET SCALE</th>
+                            <th>RELEASE YEAR</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${selectedTopo.map((row, idx) => `
+                        ${selectedTopo.map((row) => {
+                            rowNum += 1;
+                            return `
                             <tr>
-                                <td style="text-align: center; font-weight: 600; color: #64748b;">${idx + 1}.</td>
-                                <td style="font-weight: 700; color: #1e3a8a;">${escapeHtml(row.sheetNum)}</td>
-                                <td>${escapeHtml(row.sheetName)}</td>
-                                <td>${escapeHtml(row.sheetScale)}</td>
-                                <td>${escapeHtml(row.release_year)}</td>
-                            </tr>
-                        `).join("")}
-                        ${selectedSjungu.map((row, idx) => `
+                                <td class="doc-input-text">${rowNum}</td>
+                                <td class="doc-input-text">${escapeHtml(row.sheetNum)}</td>
+                                <td class="doc-input-text">${escapeHtml(row.sheetName)}</td>
+                                <td class="doc-input-text">${escapeHtml(row.sheetScale)}</td>
+                                <td class="doc-input-text">${escapeHtml(row.release_year)}</td>
+                            </tr>`;
+                        }).join("")}
+                        ${selectedSjungu.map((row) => {
+                            rowNum += 1;
+                            return `
                             <tr>
-                                <td style="text-align: center; font-weight: 600; color: #64748b;">${idx + 1}.</td>
-                                <td style="font-weight: 700; color: #1e3a8a;">${escapeHtml(row.sheetNum)}</td>
-                                <td>${escapeHtml(row.sheetName)}</td>
-                                <td>${escapeHtml(row.sheetScale)}</td>
-                                <td></td>
-                            </tr>
-                        `).join("")}
+                                <td class="doc-input-text">${rowNum}</td>
+                                <td class="doc-input-text">${escapeHtml(row.sheetNum)}</td>
+                                <td class="doc-input-text">${escapeHtml(row.sheetName)}</td>
+                                <td class="doc-input-text">${escapeHtml(row.sheetScale)}</td>
+                                <td class="doc-input-text"></td>
+                            </tr>`;
+                        }).join("")}
                         <tr class="doc-total-row">
                             <td colspan="4">TOTAL</td>
-                            <td>${totalLabel}</td>
+                            <td class="doc-input-text">${totalLabel}</td>
                         </tr>
                     </tbody>
                 </table>
@@ -880,29 +882,26 @@ function renderDocumentPreview() {
     if (selectedLand.length > 0) {
         html += `
             <div class="doc-section doc-section-follow">
-                <div class="doc-section-title">
-                    <span>2. LAND USE CATEGORIES</span>
-                    <span class="doc-section-count">${selectedLand.length} item(s)</span>
-                </div>
+                <div class="doc-section-title">Landused</div>
                 <table class="doc-table">
                     <thead>
                         <tr>
-                            <th style="width: 10%; text-align: center;">No.</th>
-                            <th style="width: 55%;">Category</th>
-                            <th style="width: 35%;">Land Used ID</th>
+                            <th>NUM.</th>
+                            <th>CATEGORY</th>
+                            <th>LANDUSED ID</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${selectedLand.map((row, idx) => `
                             <tr>
-                                <td style="text-align: center; font-weight: 600; color: #64748b;">${idx + 1}.</td>
-                                <td>${escapeHtml(row.category)}</td>
-                                <td style="font-weight: 700;">${escapeHtml(row.landused_id)}</td>
+                                <td class="doc-input-text">${idx + 1}</td>
+                                <td class="doc-input-text">${escapeHtml(row.category)}</td>
+                                <td class="doc-input-text">${escapeHtml(row.landused_id)}</td>
                             </tr>
                         `).join("")}
                         <tr class="doc-total-row">
                             <td colspan="2">TOTAL</td>
-                            <td>${selectedLand.length}</td>
+                            <td class="doc-input-text">${selectedLand.length}</td>
                         </tr>
                     </tbody>
                 </table>
@@ -913,29 +912,26 @@ function renderDocumentPreview() {
     if (selectedDted.length > 0) {
         html += `
             <div class="doc-section doc-section-follow">
-                <div class="doc-section-title">
-                    <span>3. DIGITAL TERRAIN ELEVATION DATA (DTED)</span>
-                    <span class="doc-section-count">${selectedDted.length} item(s)</span>
-                </div>
+                <div class="doc-section-title">Digital Terrain Elevation Data (DTED)</div>
                 <table class="doc-table">
                     <thead>
                         <tr>
-                            <th style="width: 8%; text-align: center;">No.</th>
-                            <th style="width: 72%;">Elevation ID / File Name</th>
-                            <th style="width: 20%;">DTED Level</th>
+                            <th>NUM.</th>
+                            <th>IDENTIFICATION NAME</th>
+                            <th>LEVEL</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${selectedDted.map((row, idx) => `
                             <tr>
-                                <td style="text-align: center; font-weight: 600; color: #64748b;">${idx + 1}.</td>
-                                <td style="font-family: monospace; font-size: 0.75rem;">${escapeHtml(row.id_name)}</td>
-                                <td style="font-weight: 700;">Level ${escapeHtml(row.level)}</td>
+                                <td class="doc-input-text">${idx + 1}</td>
+                                <td class="doc-input-text">${escapeHtml(row.id_name)}</td>
+                                <td class="doc-input-text">${escapeHtml(row.level)}</td>
                             </tr>
                         `).join("")}
                         <tr class="doc-total-row">
                             <td colspan="2">TOTAL</td>
-                            <td>${selectedDted.length}</td>
+                            <td class="doc-input-text">${selectedDted.length}</td>
                         </tr>
                     </tbody>
                 </table>
@@ -963,7 +959,7 @@ async function exportExcel() {
             body: JSON.stringify({
                 ...payload,
                 report_ref: state.reportRef,
-                report_title: DOM.docTitleInput.value.trim() || "SaP LISTMAP DATA SPECIFICATION REPORT"
+                report_title: DOM.docTitleInput.value.trim() || DEFAULT_DOC_SUBTITLE
             })
         });
         if (handleAuthFailure(response)) return;
@@ -978,7 +974,7 @@ async function exportExcel() {
         const link = document.createElement("a");
         const refSuffix = state.reportRef ? `_${state.reportRef}` : "";
         link.href = url;
-        link.download = `SaP_ListMap_Export${refSuffix}_${new Date().toISOString().split("T")[0]}.xlsx`;
+        link.download = `GIS_Info_Export${refSuffix}_${new Date().toISOString().split("T")[0]}.xlsx`;
         link.click();
         URL.revokeObjectURL(url);
     } catch (e) {
@@ -996,7 +992,7 @@ function updateDocumentTitleText() {
     const inputTitle = DOM.docTitleInput.value.trim();
     const docTitleEl = document.getElementById("document-title-header");
     if (docTitleEl) {
-        docTitleEl.textContent = inputTitle || "SaP LISTMAP DATA SPECIFICATION REPORT";
+        docTitleEl.textContent = inputTitle || DEFAULT_DOC_SUBTITLE;
     }
 }
 
@@ -1014,7 +1010,7 @@ function waitForReflow() {
 
 async function generatePDF() {
     const refSuffix = state.reportRef ? `_${state.reportRef}` : "";
-    const filename = `SaP_ListMap_Report${refSuffix}_${new Date().toISOString().split("T")[0]}.pdf`;
+    const filename = `GIS_Info_Report${refSuffix}_${new Date().toISOString().split("T")[0]}.pdf`;
 
     DOM.btnPdf.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
     DOM.btnPdf.disabled = true;
@@ -1036,7 +1032,7 @@ async function printDocument() {
     if (getSelectionCount() === 0) return;
 
     const refSuffix = state.reportRef ? `_${state.reportRef}` : "";
-    const filename = `SaP_ListMap_Print${refSuffix}_${new Date().toISOString().split("T")[0]}.pdf`;
+    const filename = `GIS_Info_Print${refSuffix}_${new Date().toISOString().split("T")[0]}.pdf`;
 
     DOM.btnPrint.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing...';
     DOM.btnPrint.disabled = true;
@@ -1480,6 +1476,7 @@ function debounce(func, wait) {
 }
 
 function updateDocDate() {
+    if (!DOM.docDate) return;
     const today = new Date();
     const options = { year: "numeric", month: "long", day: "numeric" };
     DOM.docDate.textContent = today.toLocaleDateString("en-US", options);

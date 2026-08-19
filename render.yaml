@@ -4,7 +4,7 @@
 
 services:
   - type: web
-    name: sap-listmap
+    name: gis-info
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt
