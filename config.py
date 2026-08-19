@@ -15,7 +15,8 @@ class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "change-me-in-production")
 
     FLASK_HOST = os.getenv("FLASK_HOST", "127.0.0.1")
-    FLASK_PORT = int(os.getenv("FLASK_PORT", 5000))
+    # Prefer PORT (Render/Railway/Heroku) over FLASK_PORT
+    FLASK_PORT = int(os.getenv("PORT") or os.getenv("FLASK_PORT", "5000"))
     FLASK_DEBUG = _env_bool("FLASK_DEBUG", "False")
 
     AUTH_ENABLED = _env_bool("AUTH_ENABLED", "True")
