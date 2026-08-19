@@ -2,70 +2,67 @@
 
 ## Deploy on Render (public URL)
 
-Requires a GitHub push of this repo (already at `fasihatulamira/SaP`).
+Render does **not** include a built-in MySQL product in most dashboards (the old “MySQL template” is easy to miss or unavailable). Your web app and the database are separate: you must add a MySQL host and set `DB_*` env vars.
 
-### A. MySQL (private service)
+### Recommended: free MySQL on Aiven + Render web service
 
-1. Open [https://dashboard.render.com](https://dashboard.render.com) and sign in with GitHub.
-2. **New → Private Service** (or use the [MySQL template](https://render.com/templates/mysql)).
-3. Use image/repo: [render-examples/mysql](https://github.com/render-examples/mysql) (MySQL 8).
-4. Environment:
+**1. Create MySQL on Aiven (free tier)**
 
-   | Key | Value |
-   |-----|--------|
-   | `MYSQL_DATABASE` | `listmap` |
-   | `MYSQL_USER` | `listmap` |
-   | `MYSQL_PASSWORD` | *(strong password)* |
-   | `MYSQL_ROOT_PASSWORD` | *(strong password)* |
+1. Sign up at [https://aiven.io/free-mysql-database](https://aiven.io/free-mysql-database) (GitHub/Google OK).
+2. Create a **MySQL** service on the free plan.
+3. Open **Overview / Connection information** and copy:
+   - Host
+   - Port (not always `3306`)
+   - User
+   - Password
+   - Database name (often `defaultdb`)
 
-5. Under **Disk**: mount path `/var/lib/mysql`, size ≥ 1 GB.
-6. After deploy, copy the **internal hostname** (looks like `sap-mysql-xxxx` — use port `3306`).
+**2. Point the Render web service at Aiven**
 
-### B. Web service
+In Render → your web service → **Environment**, set:
 
-1. **New → Blueprint** and select this repo (uses `render.yaml`), **or** **New → Web Service** → `SaP`.
-2. If manual Web Service:
-   - **Runtime:** Python 3
-   - **Build:** `pip install -r requirements.txt`
-   - **Start:** `python run_production.py`
-3. Set environment variables (Blueprint prompts for `sync: false` ones):
+| Key | Value |
+|-----|--------|
+| `DB_HOST` | *(Aiven host)* |
+| `DB_PORT` | *(Aiven port)* |
+| `DB_USER` | *(Aiven user)* |
+| `DB_PASSWORD` | *(Aiven password)* |
+| `DB_NAME` | `defaultdb` *(or the name Aiven shows)* |
+| `DB_SSL` | `true` |
+| `APP_ENV` | `production` |
+| `FLASK_HOST` | `0.0.0.0` |
+| `FLASK_DEBUG` | `False` |
+| `SECRET_KEY` | *(long random string)* |
+| `AUTH_ENABLED` | `True` |
+| `AUTH_ADMIN_USERNAME` | `admin` |
+| `AUTH_ADMIN_PASSWORD` | *(strong password)* |
+| `AUTH_USER_USERNAME` | `user` |
+| `AUTH_USER_PASSWORD` | *(strong password)* |
 
-   | Key | Value |
-   |-----|--------|
-   | `APP_ENV` | `production` |
-   | `FLASK_HOST` | `0.0.0.0` |
-   | `FLASK_DEBUG` | `False` |
-   | `SECRET_KEY` | *(auto or long random string)* |
-   | `DB_HOST` | *(MySQL internal hostname from A)* |
-   | `DB_PORT` | `3306` |
-   | `DB_USER` | `listmap` (or root) |
-   | `DB_PASSWORD` | *(same as MySQL)* |
-   | `DB_NAME` | `listmap` |
-   | `AUTH_ENABLED` | `True` |
-   | `AUTH_ADMIN_USERNAME` | `admin` |
-   | `AUTH_ADMIN_PASSWORD` | *(strong password)* |
-   | `AUTH_USER_USERNAME` | `user` |
-   | `AUTH_USER_PASSWORD` | *(strong password)* |
+Save → Render redeploys. On startup the app creates tables automatically (`ensure_core_tables`).
 
-4. Deploy. Public URL: `https://sap-listmap.onrender.com` (or the name Render assigns).
+**3. Confirm tables**
 
-### C. Apply database schema (once)
+- Open the site, log in, browse categories (empty lists are OK until you add/seed data).
+- Or in Render **Shell**: `python init_schema.py`
+- Optional seed (if you have sample data scripts): `python populate_data.py`
 
-From your PC (with network access to MySQL — only works if MySQL is reachable; private Render MySQL is **not** reachable from your PC):
+### Alternative: MySQL as a Render Private Service (paid disk)
 
-Use **Render Shell** on the web service after deploy:
+No template required:
 
-```bash
-python init_schema.py
-```
-
-Or open a one-off job / shell with the same env vars and run that command. `init_schema.py` runs `schema.sql` via MySQL connector.
+1. On GitHub: open [render-examples/mysql](https://github.com/render-examples/mysql) → **Use this template** / fork.
+2. Render → **New → Private Service** → select that repo → **Docker**.
+3. Env: `MYSQL_DATABASE=listmap`, `MYSQL_USER=listmap`, `MYSQL_PASSWORD=…`, `MYSQL_ROOT_PASSWORD=…`
+4. **Disk**: mount path `/var/lib/mysql` (required), size ≥ 1 GB.
+5. After it is live, copy the **internal hostname** (e.g. `sap-mysql-xxxx`).
+6. On the web service set `DB_HOST` to that hostname, `DB_PORT=3306`, matching user/password/`DB_NAME=listmap`. Leave `DB_SSL` unset/false.
 
 ### Notes
 
-- Free web services **sleep** after idle time; first request after sleep can take ~30–60s.
-- MySQL private service and disks are usually **paid** on Render — check current pricing.
-- Never use the Docker demo passwords (`admin123`) on a public site.
+- If the site loads but every API fails or categories stay broken, `DB_*` is wrong or still pointing at `localhost`.
+- Free Render web services **sleep** when idle; first request can take ~30–60s.
+- Never use Docker demo passwords (`admin123`) on a public site.
 
 ---
 

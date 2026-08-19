@@ -1,46 +1,31 @@
-"""Apply schema.sql to the configured MySQL database (one-time / upgrade)."""
-import os
+"""Apply core tables to the configured MySQL database (one-time / upgrade)."""
+import logging
 import sys
 
-import mysql.connector
 from dotenv import load_dotenv
 
 load_dotenv()
 
-SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "schema.sql")
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+
+import database  # noqa: E402  — after dotenv
 
 
 def main():
-    host = os.getenv("DB_HOST", "localhost")
-    port = int(os.getenv("DB_PORT", "3306"))
-    user = os.getenv("DB_USER")
-    password = os.getenv("DB_PASSWORD")
-    database = os.getenv("DB_NAME", "listmap")
-
-    if not user or password is None:
-        print("Set DB_USER and DB_PASSWORD (and usually DB_HOST / DB_NAME).", file=sys.stderr)
-        sys.exit(1)
-
-    with open(SCHEMA_PATH, encoding="utf-8") as f:
-        sql = f.read()
-
-    # Connect without a default DB so CREATE DATABASE works
-    conn = mysql.connector.connect(
-        host=host,
-        port=port,
-        user=user,
-        password=password,
-        allow_local_infile=True,
-    )
     try:
-        cursor = conn.cursor()
-        for result in cursor.execute(sql, multi=True):
-            if result.with_rows:
-                result.fetchall()
-        conn.commit()
-        print(f"Schema applied on {host}:{port} (database={database}).")
-    finally:
-        conn.close()
+        database.ensure_core_tables()
+    except Exception as exc:
+        print(f"Schema apply failed: {exc}", file=sys.stderr)
+        print(
+            "Check DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME "
+            "(set DB_SSL=true for Aiven / other managed MySQL).",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    print(
+        f"Schema OK on {database.db_config.get('host')}:{database.db_config.get('port')} "
+        f"database={database.db_config.get('database')}"
+    )
 
 
 if __name__ == "__main__":

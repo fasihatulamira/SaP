@@ -1,5 +1,21 @@
 # Decision Log
 
+## 2026-08-19 — External MySQL for Render (no template)
+
+### Decision
+Use a managed public MySQL (recommended: Aiven free) with the Render web service; auto-create tables on app startup; support `DB_SSL`.
+
+### Why
+Render dashboards often have no MySQL template. The deployed site had no tables because no MySQL was attached / schema never applied.
+
+### Design
+1. Document Aiven free MySQL + `DB_*` + `DB_SSL=true` on the Render service.
+2. `database.ensure_core_tables()` creates topography/dted/landused/sjung/audit tables with `IF NOT EXISTS`.
+3. App startup calls `ensure_core_tables()` so a correct DB connection creates schema without a manual Shell step.
+4. Keep Render Private Service MySQL as a paid alternative (fork `render-examples/mysql`).
+
+---
+
 ## 2026-08-19 — Public deploy on Render
 
 ### Decision

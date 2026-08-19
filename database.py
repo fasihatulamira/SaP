@@ -16,8 +16,12 @@ db_config = {
     "port": int(os.getenv("DB_PORT", 3306)),
     "user": os.getenv("DB_USER"),
     "password": os.getenv("DB_PASSWORD"),
-    "database": os.getenv("DB_NAME")
+    "database": os.getenv("DB_NAME"),
 }
+
+# Managed hosts (Aiven, etc.) usually require TLS
+if os.getenv("DB_SSL", "").lower() in ("true", "1", "t", "y", "yes"):
+    db_config["ssl_disabled"] = False
 
 try:
     db_pool = pooling.MySQLConnectionPool(
@@ -341,6 +345,53 @@ def delete_sjungu_record(sheet_num):
     with get_db_cursor(commit=True) as cursor:
         cursor.execute("DELETE FROM sjung WHERE sheetNum=%s", (sheet_num,))
         return cursor.rowcount > 0
+
+
+def ensure_core_tables():
+    """Create all LISTMAP tables when missing (safe for managed MySQL)."""
+    statements = (
+        """
+        CREATE TABLE IF NOT EXISTS topography (
+          sheetNum     VARCHAR(45)  NOT NULL,
+          sheetName    VARCHAR(255) NOT NULL,
+          sheetScale   VARCHAR(45)  NOT NULL,
+          release_year INT          NOT NULL,
+          PRIMARY KEY (sheetNum),
+          INDEX idx_topography_release_year (release_year),
+          INDEX idx_topography_sheet_name (sheetName)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS dted (
+          id_name VARCHAR(255) NOT NULL,
+          level   INT          NOT NULL,
+          PRIMARY KEY (id_name),
+          INDEX idx_dted_level (level)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS landused (
+          landused_id INT          NOT NULL AUTO_INCREMENT,
+          category    VARCHAR(255) NOT NULL,
+          PRIMARY KEY (landused_id),
+          INDEX idx_landused_category (category)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS sjung (
+          sheetNum   VARCHAR(255) NOT NULL,
+          sheetName  VARCHAR(45)  NOT NULL,
+          sheetScale VARCHAR(45)  NOT NULL,
+          PRIMARY KEY (sheetNum),
+          INDEX idx_sjung_sheet_name (sheetName)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+        """,
+    )
+    with get_db_cursor(commit=True) as cursor:
+        for sql in statements:
+            cursor.execute(sql)
+    ensure_audit_log_table()
+    ensure_audit_document_table()
 
 
 def ensure_audit_log_table():

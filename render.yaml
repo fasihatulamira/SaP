@@ -45,3 +45,5 @@ services:
         sync: false
       - key: DB_NAME
         value: listmap
+      - key: DB_SSL
+        sync: false

@@ -57,10 +57,12 @@ limiter = Limiter(
 register_auth_routes(app)
 
 try:
-    database.ensure_audit_log_table()
-    database.ensure_audit_document_table()
+    database.ensure_core_tables()
 except Exception:
-    logger.exception("Failed to ensure audit tables exist")
+    logger.exception(
+        "Failed to ensure database tables exist — check DB_HOST/DB_USER/DB_PASSWORD/DB_NAME "
+        "(and DB_SSL=true for managed MySQL such as Aiven)"
+    )
 
 
 @limiter.request_filter
