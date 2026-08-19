@@ -17,7 +17,10 @@ VALID_ACTIONS = (
 
 
 def log_event(action, report_ref=None, item_count=0, details=None, username=None, role=None):
-    """Record an audit log entry for the current user."""
+    """Record an audit log entry for the current user.
+
+    Returns the new audit_log id on success, or False on failure.
+    """
     if action not in VALID_ACTIONS:
         raise ValueError(f"Invalid audit action: {action}")
 
@@ -28,7 +31,7 @@ def log_event(action, report_ref=None, item_count=0, details=None, username=None
         user = {**user, "role": role}
 
     try:
-        database.insert_audit_log(
+        audit_id = database.insert_audit_log(
             username=user["username"],
             role=user["role"],
             action=action,
@@ -36,7 +39,7 @@ def log_event(action, report_ref=None, item_count=0, details=None, username=None
             item_count=item_count,
             details=details,
         )
-        return True
+        return audit_id
     except Exception:
         logger.exception("Failed to write audit log for action=%s", action)
         return False

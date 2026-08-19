@@ -205,6 +205,144 @@ def get_filter_options():
     }
 
 
+def _require_non_empty_str(value, field_name):
+    if value is None or not str(value).strip():
+        raise ValueError(f"{field_name} is required.")
+    return str(value).strip()
+
+
+def _require_int(value, field_name):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"{field_name} must be a valid integer.")
+
+
+def create_topography_record(sheet_num, sheet_name, sheet_scale, release_year):
+    sheet_num = _require_non_empty_str(sheet_num, "sheetNum")
+    sheet_name = _require_non_empty_str(sheet_name, "sheetName")
+    sheet_scale = _require_non_empty_str(sheet_scale, "sheetScale")
+    release_year = _require_int(release_year, "release_year")
+    with get_db_cursor(commit=True) as cursor:
+        cursor.execute(
+            "INSERT INTO topography (sheetNum, sheetName, sheetScale, release_year) VALUES (%s, %s, %s, %s)",
+            (sheet_num, sheet_name, sheet_scale, release_year),
+        )
+
+
+def update_topography_record(sheet_num, sheet_name, sheet_scale, release_year):
+    sheet_num = _require_non_empty_str(sheet_num, "sheetNum")
+    sheet_name = _require_non_empty_str(sheet_name, "sheetName")
+    sheet_scale = _require_non_empty_str(sheet_scale, "sheetScale")
+    release_year = _require_int(release_year, "release_year")
+    with get_db_cursor(commit=True) as cursor:
+        cursor.execute(
+            "UPDATE topography SET sheetName=%s, sheetScale=%s, release_year=%s WHERE sheetNum=%s",
+            (sheet_name, sheet_scale, release_year, sheet_num),
+        )
+        return cursor.rowcount > 0
+
+
+def delete_topography_record(sheet_num):
+    sheet_num = _require_non_empty_str(sheet_num, "sheetNum")
+    with get_db_cursor(commit=True) as cursor:
+        cursor.execute("DELETE FROM topography WHERE sheetNum=%s", (sheet_num,))
+        return cursor.rowcount > 0
+
+
+def create_dted_record(id_name, level):
+    id_name = _require_non_empty_str(id_name, "id_name")
+    level = _require_int(level, "level")
+    with get_db_cursor(commit=True) as cursor:
+        cursor.execute(
+            "INSERT INTO dted (id_name, level) VALUES (%s, %s)",
+            (id_name, level),
+        )
+
+
+def update_dted_record(id_name, level):
+    id_name = _require_non_empty_str(id_name, "id_name")
+    level = _require_int(level, "level")
+    with get_db_cursor(commit=True) as cursor:
+        cursor.execute(
+            "UPDATE dted SET level=%s WHERE id_name=%s",
+            (level, id_name),
+        )
+        return cursor.rowcount > 0
+
+
+def delete_dted_record(id_name):
+    id_name = _require_non_empty_str(id_name, "id_name")
+    with get_db_cursor(commit=True) as cursor:
+        cursor.execute("DELETE FROM dted WHERE id_name=%s", (id_name,))
+        return cursor.rowcount > 0
+
+
+def create_landused_record(category, landused_id=None):
+    category = _require_non_empty_str(category, "category")
+    with get_db_cursor(commit=True) as cursor:
+        if landused_id is not None and str(landused_id).strip() != "":
+            landused_id = _require_int(landused_id, "landused_id")
+            cursor.execute(
+                "INSERT INTO landused (landused_id, category) VALUES (%s, %s)",
+                (landused_id, category),
+            )
+            return landused_id
+        cursor.execute(
+            "INSERT INTO landused (category) VALUES (%s)",
+            (category,),
+        )
+        return cursor.lastrowid
+
+
+def update_landused_record(landused_id, category):
+    landused_id = _require_int(landused_id, "landused_id")
+    category = _require_non_empty_str(category, "category")
+    with get_db_cursor(commit=True) as cursor:
+        cursor.execute(
+            "UPDATE landused SET category=%s WHERE landused_id=%s",
+            (category, landused_id),
+        )
+        return cursor.rowcount > 0
+
+
+def delete_landused_record(landused_id):
+    landused_id = _require_int(landused_id, "landused_id")
+    with get_db_cursor(commit=True) as cursor:
+        cursor.execute("DELETE FROM landused WHERE landused_id=%s", (landused_id,))
+        return cursor.rowcount > 0
+
+
+def create_sjungu_record(sheet_num, sheet_name, sheet_scale):
+    sheet_num = _require_non_empty_str(sheet_num, "sheetNum")
+    sheet_name = _require_non_empty_str(sheet_name, "sheetName")
+    sheet_scale = _require_non_empty_str(sheet_scale, "sheetScale")
+    with get_db_cursor(commit=True) as cursor:
+        cursor.execute(
+            "INSERT INTO sjung (sheetNum, sheetName, sheetScale) VALUES (%s, %s, %s)",
+            (sheet_num, sheet_name, sheet_scale),
+        )
+
+
+def update_sjungu_record(sheet_num, sheet_name, sheet_scale):
+    sheet_num = _require_non_empty_str(sheet_num, "sheetNum")
+    sheet_name = _require_non_empty_str(sheet_name, "sheetName")
+    sheet_scale = _require_non_empty_str(sheet_scale, "sheetScale")
+    with get_db_cursor(commit=True) as cursor:
+        cursor.execute(
+            "UPDATE sjung SET sheetName=%s, sheetScale=%s WHERE sheetNum=%s",
+            (sheet_name, sheet_scale, sheet_num),
+        )
+        return cursor.rowcount > 0
+
+
+def delete_sjungu_record(sheet_num):
+    sheet_num = _require_non_empty_str(sheet_num, "sheetNum")
+    with get_db_cursor(commit=True) as cursor:
+        cursor.execute("DELETE FROM sjung WHERE sheetNum=%s", (sheet_num,))
+        return cursor.rowcount > 0
+
+
 def ensure_audit_log_table():
     """Create audit_log table when missing (safe for existing databases)."""
     with get_db_cursor(commit=True) as cursor:
@@ -228,8 +366,31 @@ def ensure_audit_log_table():
         )
 
 
+def ensure_audit_document_table():
+    """Create audit_document table when missing (safe for existing databases)."""
+    with get_db_cursor(commit=True) as cursor:
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS audit_document (
+              id           INT          NOT NULL AUTO_INCREMENT,
+              audit_id     INT          NOT NULL,
+              filename     VARCHAR(255) NOT NULL,
+              mime_type    VARCHAR(100) NOT NULL,
+              file_size    INT          NOT NULL,
+              file_data    LONGBLOB     NOT NULL,
+              created_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              PRIMARY KEY (id),
+              UNIQUE KEY uq_audit_document_audit_id (audit_id),
+              CONSTRAINT fk_audit_document_audit
+                FOREIGN KEY (audit_id) REFERENCES audit_log(id)
+                ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+            """
+        )
+
+
 def insert_audit_log(username, role, action, report_ref=None, item_count=0, details=None):
-    """Insert a row into the audit_log table."""
+    """Insert a row into the audit_log table and return its id."""
     details_json = json.dumps(details) if details is not None else None
     with get_db_cursor(commit=True) as cursor:
         cursor.execute(
@@ -239,6 +400,46 @@ def insert_audit_log(username, role, action, report_ref=None, item_count=0, deta
             """,
             (username, role, action, report_ref, item_count, details_json),
         )
+        return cursor.lastrowid
+
+
+def insert_audit_document(audit_id, filename, mime_type, file_data):
+    """Store an archived document linked to an audit_log row."""
+    audit_id = int(audit_id)
+    filename = _require_non_empty_str(filename, "filename")
+    mime_type = _require_non_empty_str(mime_type, "mime_type")
+    if file_data is None:
+        raise ValueError("file_data is required.")
+    file_size = len(file_data)
+    with get_db_cursor(commit=True) as cursor:
+        cursor.execute(
+            """
+            INSERT INTO audit_document (audit_id, filename, mime_type, file_size, file_data)
+            VALUES (%s, %s, %s, %s, %s)
+            """,
+            (audit_id, filename, mime_type, file_size, file_data),
+        )
+        return cursor.lastrowid
+
+
+def get_audit_document(audit_id):
+    """Return archived document metadata + bytes for an audit entry, or None."""
+    audit_id = int(audit_id)
+    with get_db_cursor(dictionary=True) as cursor:
+        cursor.execute(
+            """
+            SELECT id, audit_id, filename, mime_type, file_size, file_data, created_at
+            FROM audit_document
+            WHERE audit_id = %s
+            """,
+            (audit_id,),
+        )
+        row = cursor.fetchone()
+    if not row:
+        return None
+    if row.get("created_at") is not None:
+        row["created_at"] = row["created_at"].isoformat(sep=" ", timespec="seconds")
+    return row
 
 
 def get_audit_logs(limit=50):
@@ -247,10 +448,16 @@ def get_audit_logs(limit=50):
     with get_db_cursor(dictionary=True) as cursor:
         cursor.execute(
             """
-            SELECT id, username, role, action, report_ref, item_count, details, created_at
-            FROM audit_log
-            WHERE action NOT IN ('login', 'logout')
-            ORDER BY created_at DESC
+            SELECT
+              a.id, a.username, a.role, a.action, a.report_ref, a.item_count,
+              a.details, a.created_at,
+              (d.id IS NOT NULL) AS has_document,
+              d.filename AS document_filename,
+              d.mime_type AS document_mime_type
+            FROM audit_log a
+            LEFT JOIN audit_document d ON d.audit_id = a.id
+            WHERE a.action NOT IN ('login', 'logout')
+            ORDER BY a.created_at DESC
             LIMIT %s
             """,
             (limit,),
@@ -264,4 +471,5 @@ def get_audit_logs(limit=50):
                 pass
         if row.get("created_at") is not None:
             row["created_at"] = row["created_at"].isoformat(sep=" ", timespec="seconds")
+        row["has_document"] = bool(row.get("has_document"))
     return rows

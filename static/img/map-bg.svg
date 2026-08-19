@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="1000" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#1E293B"/>
+    </linearGradient>
+    <pattern id="grid" width="64" height="64" patternUnits="userSpaceOnUse">
+      <path d="M64 0H0V64" stroke="#94A3B8" stroke-opacity="0.14" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#bg)"/>
+  <rect width="1600" height="1000" fill="url(#grid)"/>
+  <g stroke="#22D3EE" stroke-opacity="0.24" stroke-width="2">
+    <path d="M80 760C220 640 340 820 500 720C660 620 760 760 920 680C1060 610 1210 710 1520 560"/>
+    <path d="M40 650C220 530 380 640 560 560C730 490 870 600 1030 530C1200 460 1330 520 1560 440"/>
+    <path d="M120 540C290 430 430 510 610 450C780 390 910 490 1080 430C1230 380 1360 430 1540 360"/>
+    <path d="M90 430C260 320 410 390 590 340C740 300 900 370 1070 320C1230 270 1380 330 1530 250"/>
+    <path d="M70 320C220 220 390 280 560 230C740 180 900 260 1070 210C1240 150 1370 220 1540 140"/>
+  </g>
+  <g stroke="#A78BFA" stroke-opacity="0.18" stroke-width="1.5">
+    <path d="M150 860C300 760 470 870 630 780C790 690 960 780 1140 700C1290 640 1430 700 1560 660"/>
+    <path d="M120 260C260 170 430 230 590 170C760 100 930 190 1110 130C1280 80 1430 140 1560 100"/>
+  </g>
+  <g fill="#38BDF8" fill-opacity="0.2">
+    <circle cx="340" cy="260" r="6"/>
+    <circle cx="640" cy="430" r="6"/>
+    <circle cx="980" cy="310" r="6"/>
+    <circle cx="1240" cy="560" r="6"/>
+  </g>
+</svg>

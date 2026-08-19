@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Direktori Lembaran & Jenis Peta</title>
+    <title>Map Sheet & Map Type Directory</title>
     
     <!-- CSS Dependencies -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
@@ -21,7 +21,7 @@
         <div class="brand">
             <div class="brand-icon"><i class="fas fa-layer-group"></i></div>
             <div>
-                <h1>Direktori Lembaran & Jenis Peta</h1>
+                <h1>Map Sheet & Map Type Directory</h1>
                 <p style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">DATA SELECTION & EXPORT CENTER</p>
             </div>
         </div>
@@ -104,9 +104,24 @@
                 </div>
 
                 <div class="select-all-bar">
-                    <button class="btn btn-outline" id="topo-select-all">
-                        <i class="far fa-square"></i> Select Page
-                    </button>
+                    <div class="select-all-left">
+                        <button class="btn btn-outline" id="topo-select-all">
+                            <i class="far fa-square"></i> Select Page
+                        </button>
+                        {% if user_role == 'admin' %}
+                        <div class="crud-actions" data-category="topography">
+                            <button type="button" class="btn btn-outline btn-crud btn-crud-add" title="Add topography record">
+                                <i class="fas fa-plus"></i> Add
+                            </button>
+                            <button type="button" class="btn btn-outline btn-crud btn-crud-edit" title="Edit selected record">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button type="button" class="btn btn-outline btn-crud btn-crud-delete" title="Delete selected record(s)">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
                     <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">Category 1: Topography Database</span>
                 </div>
 
@@ -146,9 +161,24 @@
                 </div>
 
                 <div class="select-all-bar">
-                    <button class="btn btn-outline" id="land-select-all">
-                        <i class="far fa-square"></i> Select Page
-                    </button>
+                    <div class="select-all-left">
+                        <button class="btn btn-outline" id="land-select-all">
+                            <i class="far fa-square"></i> Select Page
+                        </button>
+                        {% if user_role == 'admin' %}
+                        <div class="crud-actions" data-category="landused">
+                            <button type="button" class="btn btn-outline btn-crud btn-crud-add" title="Add land use record">
+                                <i class="fas fa-plus"></i> Add
+                            </button>
+                            <button type="button" class="btn btn-outline btn-crud btn-crud-edit" title="Edit selected record">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button type="button" class="btn btn-outline btn-crud btn-crud-delete" title="Delete selected record(s)">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
                     <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">Category 2: Land Coverage Classification</span>
                 </div>
 
@@ -157,8 +187,7 @@
                         <thead>
                             <tr>
                                 <th style="width: 8%;">Select</th>
-                                <th style="width: 10%;">No.</th>
-                                <th style="width: 62%;">Category</th>
+                                <th style="width: 72%;">Category</th>
                                 <th style="width: 20%;">Land Used ID</th>
                             </tr>
                         </thead>
@@ -190,9 +219,24 @@
                 </div>
 
                 <div class="select-all-bar">
-                    <button class="btn btn-outline" id="dted-select-all">
-                        <i class="far fa-square"></i> Select Page
-                    </button>
+                    <div class="select-all-left">
+                        <button class="btn btn-outline" id="dted-select-all">
+                            <i class="far fa-square"></i> Select Page
+                        </button>
+                        {% if user_role == 'admin' %}
+                        <div class="crud-actions" data-category="dted">
+                            <button type="button" class="btn btn-outline btn-crud btn-crud-add" title="Add DTED record">
+                                <i class="fas fa-plus"></i> Add
+                            </button>
+                            <button type="button" class="btn btn-outline btn-crud btn-crud-edit" title="Edit selected record">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button type="button" class="btn btn-outline btn-crud btn-crud-delete" title="Delete selected record(s)">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
                     <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">Category 3: Elevation Model Database</span>
                 </div>
 
@@ -201,8 +245,7 @@
                         <thead>
                             <tr>
                                 <th style="width: 8%;">Select</th>
-                                <th style="width: 10%;">No.</th>
-                                <th style="width: 62%;">Elevation ID / Path Name</th>
+                                <th style="width: 72%;">Elevation ID / Path Name</th>
                                 <th style="width: 20%;">DTED Level</th>
                             </tr>
                         </thead>
@@ -231,9 +274,24 @@
                 </div>
 
                 <div class="select-all-bar">
-                    <button class="btn btn-outline" id="sjungu-select-all">
-                        <i class="far fa-square"></i> Select Page
-                    </button>
+                    <div class="select-all-left">
+                        <button class="btn btn-outline" id="sjungu-select-all">
+                            <i class="far fa-square"></i> Select Page
+                        </button>
+                        {% if user_role == 'admin' %}
+                        <div class="crud-actions" data-category="sjungu">
+                            <button type="button" class="btn btn-outline btn-crud btn-crud-add" title="Add Sjung record">
+                                <i class="fas fa-plus"></i> Add
+                            </button>
+                            <button type="button" class="btn btn-outline btn-crud btn-crud-edit" title="Edit selected record">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button type="button" class="btn btn-outline btn-crud btn-crud-delete" title="Delete selected record(s)">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
                     <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">Category 4: Sjung Database</span>
                 </div>
 
@@ -321,6 +379,30 @@
         </section>
         
     </main>
+
+    <!-- Record Add/Edit Modal (admin only) -->
+    <div id="record-modal" class="modal hidden" role="dialog" aria-labelledby="record-modal-title" aria-modal="true">
+        <div class="modal-backdrop" id="record-modal-backdrop"></div>
+        <div class="modal-card glass-card record-modal-card">
+            <div class="modal-header">
+                <h2 id="record-modal-title"><i class="fas fa-database"></i> Add Record</h2>
+                <button type="button" id="record-modal-close" class="btn btn-secondary" aria-label="Close record form">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="record-form" class="record-form">
+                    <div id="record-form-fields" class="record-form-fields"></div>
+                    <div class="record-form-actions">
+                        <button type="button" id="record-modal-cancel" class="btn btn-secondary">Cancel</button>
+                        <button type="submit" id="record-modal-save" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
     <!-- Audit Log Modal (admin only) -->
     <div id="audit-modal" class="modal hidden" role="dialog" aria-labelledby="audit-modal-title" aria-modal="true">

@@ -1,11 +1,27 @@
 import logging
 from datetime import timedelta
+from io import BytesIO
 
 from flask import Flask, jsonify, render_template, request, send_file
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from mysql.connector import errors as mysql_errors
 
 import database
+from database import (
+    create_dted_record,
+    create_landused_record,
+    create_sjungu_record,
+    create_topography_record,
+    delete_dted_record,
+    delete_landused_record,
+    delete_sjungu_record,
+    delete_topography_record,
+    update_dted_record,
+    update_landused_record,
+    update_sjungu_record,
+    update_topography_record,
+)
 from audit import VALID_ACTIONS, log_event
 from auth import admin_required, get_current_user, login_required, register_auth_routes
 from config import Config
@@ -19,10 +35,17 @@ logger = logging.getLogger(__name__)
 
 API_ERROR_MESSAGE = "An internal error occurred. Please try again later."
 VALID_CATEGORIES = ("topography", "dted", "landused", "sjungu")
+DOCUMENT_ACTIONS = frozenset({"export_xlsx", "export_pdf", "print"})
+MAX_AUDIT_DOCUMENT_BYTES = 15 * 1024 * 1024
+ALLOWED_DOCUMENT_MIME_TYPES = {
+    "application/pdf": ".pdf",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
+}
 
 app = Flask(__name__)
 app.config.from_object(Config)
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=Config.SESSION_LIFETIME_MINUTES)
+app.config["MAX_CONTENT_LENGTH"] = MAX_AUDIT_DOCUMENT_BYTES + (1 * 1024 * 1024)
 
 limiter = Limiter(
     key_func=get_remote_address,
@@ -35,8 +58,9 @@ register_auth_routes(app)
 
 try:
     database.ensure_audit_log_table()
+    database.ensure_audit_document_table()
 except Exception:
-    logger.exception("Failed to ensure audit_log table exists")
+    logger.exception("Failed to ensure audit tables exist")
 
 
 @limiter.request_filter
@@ -58,6 +82,29 @@ def _parse_pagination():
 
 def _selection_item_count(payload):
     return sum(len(payload.get(cat) or []) for cat in VALID_CATEGORIES)
+
+
+def _safe_filename(name, fallback="document"):
+    cleaned = "".join(ch for ch in str(name or fallback) if ch.isalnum() or ch in ("-", "_", ".", " ")).strip()
+    return cleaned or fallback
+
+
+def _store_audit_document(audit_id, filename, mime_type, file_data):
+    if not audit_id or not file_data:
+        return False
+    if len(file_data) > MAX_AUDIT_DOCUMENT_BYTES:
+        logger.warning("Rejected oversized audit document for audit_id=%s", audit_id)
+        return False
+    if mime_type not in ALLOWED_DOCUMENT_MIME_TYPES:
+        logger.warning("Rejected unsupported mime type %s for audit_id=%s", mime_type, audit_id)
+        return False
+    database.insert_audit_document(
+        audit_id=audit_id,
+        filename=_safe_filename(filename),
+        mime_type=mime_type,
+        file_data=file_data,
+    )
+    return True
 
 
 @app.route("/")
@@ -151,6 +198,147 @@ def get_category_records(category):
         return jsonify({"error": API_ERROR_MESSAGE}), 500
 
 
+@app.route("/api/records/<category>", methods=["POST"])
+@admin_required
+@limiter.limit("60 per minute")
+def create_category_record(category):
+    """Create a new record in the given category (admin only)."""
+    if category not in VALID_CATEGORIES:
+        return jsonify({"error": "Invalid category."}), 400
+
+    data = request.get_json(silent=True) or {}
+
+    try:
+        if category == "topography":
+            create_topography_record(
+                data.get("sheetNum"),
+                data.get("sheetName"),
+                data.get("sheetScale"),
+                data.get("release_year"),
+            )
+            record = {
+                "sheetNum": str(data.get("sheetNum", "")).strip(),
+                "sheetName": str(data.get("sheetName", "")).strip(),
+                "sheetScale": str(data.get("sheetScale", "")).strip(),
+                "release_year": int(data.get("release_year")),
+            }
+        elif category == "dted":
+            create_dted_record(data.get("id_name"), data.get("level"))
+            record = {
+                "id_name": str(data.get("id_name", "")).strip(),
+                "level": int(data.get("level")),
+            }
+        elif category == "landused":
+            landused_id = create_landused_record(data.get("category"), data.get("landused_id"))
+            record = {
+                "landused_id": landused_id,
+                "category": str(data.get("category", "")).strip(),
+            }
+        else:
+            create_sjungu_record(
+                data.get("sheetNum"),
+                data.get("sheetName"),
+                data.get("sheetScale"),
+            )
+            record = {
+                "sheetNum": str(data.get("sheetNum", "")).strip(),
+                "sheetName": str(data.get("sheetName", "")).strip(),
+                "sheetScale": str(data.get("sheetScale", "")).strip(),
+            }
+        return jsonify({"ok": True, "record": record}), 201
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except mysql_errors.IntegrityError:
+        return jsonify({"error": "A record with that identifier already exists."}), 409
+    except Exception:
+        logger.exception("Failed to create record for category: %s", category)
+        return jsonify({"error": API_ERROR_MESSAGE}), 500
+
+
+@app.route("/api/records/<category>/<path:record_id>", methods=["PUT"])
+@admin_required
+@limiter.limit("60 per minute")
+def update_category_record(category, record_id):
+    """Update an existing record (admin only)."""
+    if category not in VALID_CATEGORIES:
+        return jsonify({"error": "Invalid category."}), 400
+
+    data = request.get_json(silent=True) or {}
+
+    try:
+        updated = False
+        if category == "topography":
+            updated = update_topography_record(
+                record_id,
+                data.get("sheetName"),
+                data.get("sheetScale"),
+                data.get("release_year"),
+            )
+            record = {
+                "sheetNum": record_id,
+                "sheetName": str(data.get("sheetName", "")).strip(),
+                "sheetScale": str(data.get("sheetScale", "")).strip(),
+                "release_year": int(data.get("release_year")),
+            }
+        elif category == "dted":
+            updated = update_dted_record(record_id, data.get("level"))
+            record = {"id_name": record_id, "level": int(data.get("level"))}
+        elif category == "landused":
+            updated = update_landused_record(record_id, data.get("category"))
+            record = {
+                "landused_id": int(record_id),
+                "category": str(data.get("category", "")).strip(),
+            }
+        else:
+            updated = update_sjungu_record(
+                record_id,
+                data.get("sheetName"),
+                data.get("sheetScale"),
+            )
+            record = {
+                "sheetNum": record_id,
+                "sheetName": str(data.get("sheetName", "")).strip(),
+                "sheetScale": str(data.get("sheetScale", "")).strip(),
+            }
+
+        if not updated:
+            return jsonify({"error": "Record not found."}), 404
+        return jsonify({"ok": True, "record": record})
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception:
+        logger.exception("Failed to update record for category: %s", category)
+        return jsonify({"error": API_ERROR_MESSAGE}), 500
+
+
+@app.route("/api/records/<category>/<path:record_id>", methods=["DELETE"])
+@admin_required
+@limiter.limit("60 per minute")
+def delete_category_record(category, record_id):
+    """Delete a record (admin only)."""
+    if category not in VALID_CATEGORIES:
+        return jsonify({"error": "Invalid category."}), 400
+
+    try:
+        if category == "topography":
+            deleted = delete_topography_record(record_id)
+        elif category == "dted":
+            deleted = delete_dted_record(record_id)
+        elif category == "landused":
+            deleted = delete_landused_record(record_id)
+        else:
+            deleted = delete_sjungu_record(record_id)
+
+        if not deleted:
+            return jsonify({"error": "Record not found."}), 404
+        return jsonify({"ok": True})
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception:
+        logger.exception("Failed to delete record for category: %s", category)
+        return jsonify({"error": API_ERROR_MESSAGE}), 500
+
+
 @app.route("/api/audit", methods=["GET"])
 @admin_required
 @limiter.limit("30 per minute")
@@ -180,13 +368,94 @@ def create_audit_entry():
     details = data.get("details")
 
     try:
-        if not log_event(action, report_ref=report_ref, item_count=item_count, details=details):
+        audit_id = log_event(action, report_ref=report_ref, item_count=item_count, details=details)
+        if not audit_id:
             return jsonify({"error": API_ERROR_MESSAGE}), 500
-        return jsonify({"ok": True})
+        return jsonify({"ok": True, "id": audit_id})
     except ValueError:
         return jsonify({"error": "Invalid audit action."}), 400
     except Exception:
         logger.exception("Failed to create audit entry")
+        return jsonify({"error": API_ERROR_MESSAGE}), 500
+
+
+@app.route("/api/audit/document", methods=["POST"])
+@login_required
+@limiter.limit("20 per minute")
+def create_audit_with_document():
+    """Record an export/print action and archive the generated document."""
+    action = request.form.get("action", "")
+    if action not in DOCUMENT_ACTIONS:
+        return jsonify({"error": "Invalid audit action for document archive."}), 400
+
+    uploaded = request.files.get("file")
+    if uploaded is None or not uploaded.filename:
+        return jsonify({"error": "Document file is required."}), 400
+
+    mime_type = (uploaded.mimetype or "").strip() or request.form.get("mime_type", "")
+    if mime_type not in ALLOWED_DOCUMENT_MIME_TYPES:
+        return jsonify({"error": "Unsupported document type."}), 400
+
+    file_data = uploaded.read()
+    if not file_data:
+        return jsonify({"error": "Document file is empty."}), 400
+    if len(file_data) > MAX_AUDIT_DOCUMENT_BYTES:
+        return jsonify({"error": "Document exceeds maximum allowed size."}), 413
+
+    report_ref = request.form.get("report_ref") or None
+    try:
+        item_count = int(request.form.get("item_count") or 0)
+    except (TypeError, ValueError):
+        item_count = 0
+
+    report_title = (request.form.get("report_title") or "").strip()
+    filename = _safe_filename(
+        request.form.get("filename") or uploaded.filename,
+        fallback=f"SaP_ListMap_{action}{ALLOWED_DOCUMENT_MIME_TYPES[mime_type]}",
+    )
+
+    details = {
+        "report_title": report_title or None,
+        "filename": filename,
+        "mime_type": mime_type,
+        "document_available": True,
+    }
+    details = {k: v for k, v in details.items() if v is not None}
+
+    try:
+        audit_id = log_event(action, report_ref=report_ref, item_count=item_count, details=details)
+        if not audit_id:
+            return jsonify({"error": API_ERROR_MESSAGE}), 500
+        if not _store_audit_document(audit_id, filename, mime_type, file_data):
+            return jsonify({"error": API_ERROR_MESSAGE}), 500
+        return jsonify({"ok": True, "id": audit_id})
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception:
+        logger.exception("Failed to create audit entry with document")
+        return jsonify({"error": API_ERROR_MESSAGE}), 500
+
+
+@app.route("/api/audit/<int:audit_id>/document", methods=["GET"])
+@admin_required
+@limiter.limit("30 per minute")
+def download_audit_document(audit_id):
+    """Return the archived document for an audit entry (admin only)."""
+    try:
+        doc = database.get_audit_document(audit_id)
+        if not doc:
+            return jsonify({"error": "Document not found."}), 404
+
+        mime_type = doc["mime_type"]
+        as_attachment = mime_type != "application/pdf"
+        return send_file(
+            BytesIO(doc["file_data"]),
+            mimetype=mime_type,
+            as_attachment=as_attachment,
+            download_name=doc["filename"],
+        )
+    except Exception:
+        logger.exception("Failed to fetch audit document for id=%s", audit_id)
         return jsonify({"error": API_ERROR_MESSAGE}), 500
 
 
@@ -207,18 +476,27 @@ def export_xlsx():
 
     try:
         buffer = build_export_workbook(report_title, report_ref, selections)
-        log_event(
+        file_data = buffer.getvalue()
+        filename = f"SaP_ListMap_Export_{report_ref or 'report'}.xlsx"
+        mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        audit_id = log_event(
             "export_xlsx",
             report_ref=report_ref,
             item_count=item_count,
-            details={"report_title": report_title},
+            details={
+                "report_title": report_title,
+                "filename": filename,
+                "mime_type": mime_type,
+                "document_available": True,
+            },
         )
-        filename = f"SaP_ListMap_Export_{report_ref or 'report'}.xlsx"
+        if audit_id:
+            _store_audit_document(audit_id, filename, mime_type, file_data)
         return send_file(
-            buffer,
+            BytesIO(file_data),
             as_attachment=True,
             download_name=filename,
-            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            mimetype=mime_type,
         )
     except Exception:
         logger.exception("Failed to generate Excel export")

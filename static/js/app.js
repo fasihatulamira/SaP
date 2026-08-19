@@ -83,7 +83,16 @@ const DOM = {
     auditModalClose: document.getElementById("audit-modal-close"),
     auditModalRefresh: document.getElementById("audit-modal-refresh"),
     auditTableBody: document.getElementById("audit-table-body"),
-    pageSizeSelect: document.getElementById("page-size-select")
+    pageSizeSelect: document.getElementById("page-size-select"),
+    recordModal: document.getElementById("record-modal"),
+    recordModalBackdrop: document.getElementById("record-modal-backdrop"),
+    recordModalClose: document.getElementById("record-modal-close"),
+    recordModalCancel: document.getElementById("record-modal-cancel"),
+    recordModalTitle: document.getElementById("record-modal-title"),
+    recordForm: document.getElementById("record-form"),
+    recordFormFields: document.getElementById("record-form-fields"),
+    recordModalSave: document.getElementById("record-modal-save"),
+    crudActions: document.querySelectorAll(".crud-actions")
 };
 
 const TABLE_CONFIG = {
@@ -111,11 +120,10 @@ const TABLE_CONFIG = {
         prevBtn: () => DOM.dtedPrev,
         nextBtn: () => DOM.dtedNext,
         selectAllBtn: () => DOM.dtedSelectAll,
-        colspan: 4,
+        colspan: 3,
         emptyMessage: "No DTED records found",
         rowLabel: (row) => `Select DTED file ${row.id_name}`,
         columns: [
-            { listIndex: true, style: "text-align: center; font-weight: 600; color: var(--text-muted);" },
             { style: "word-break: break-all;", value: (row) => row.id_name },
             {
                 html: (row) => `<span class="badge" style="background: rgba(6, 182, 212, 0.15); color: var(--accent); padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 600;">Level ${escapeHtml(row.level)}</span>`
@@ -129,11 +137,10 @@ const TABLE_CONFIG = {
         prevBtn: () => DOM.landPrev,
         nextBtn: () => DOM.landNext,
         selectAllBtn: () => DOM.landSelectAll,
-        colspan: 4,
+        colspan: 3,
         emptyMessage: "No land use categories found",
         rowLabel: (row) => `Select land use category ${row.category}`,
         columns: [
-            { listIndex: true, style: "text-align: center; font-weight: 600; color: var(--text-muted);" },
             { value: (row) => row.category },
             { value: (row) => row.landused_id, style: "font-weight: 600; color: var(--primary-light);" }
         ]
@@ -156,6 +163,47 @@ const TABLE_CONFIG = {
     }
 };
 
+const RECORD_SCHEMA = {
+    topography: {
+        label: "Topography",
+        fields: [
+            { name: "sheetNum", label: "Sheet Number", type: "text", required: true, primaryKey: true },
+            { name: "sheetName", label: "Sheet Name", type: "text", required: true },
+            { name: "sheetScale", label: "Scale", type: "text", required: true },
+            { name: "release_year", label: "Release Year", type: "number", required: true }
+        ]
+    },
+    landused: {
+        label: "Land Used",
+        fields: [
+            { name: "landused_id", label: "Land Used ID", type: "number", required: true, primaryKey: true },
+            { name: "category", label: "Category", type: "text", required: true }
+        ]
+    },
+    dted: {
+        label: "DTED",
+        fields: [
+            { name: "id_name", label: "Elevation ID / Path Name", type: "text", required: true, primaryKey: true },
+            { name: "level", label: "DTED Level", type: "number", required: true }
+        ]
+    },
+    sjungu: {
+        label: "Sjung",
+        fields: [
+            { name: "sheetNum", label: "Sheet Number", type: "text", required: true, primaryKey: true },
+            { name: "sheetName", label: "Sheet Name", type: "text", required: true },
+            { name: "sheetScale", label: "Scale", type: "text", required: true }
+        ]
+    }
+};
+
+const recordModalState = {
+    category: null,
+    mode: "add",
+    recordId: null,
+    recordData: null
+};
+
 function handleAuthFailure(response) {
     if (response.status === 401) {
         window.location.href = "/login?next=" + encodeURIComponent(window.location.pathname);
@@ -176,8 +224,9 @@ function escapeHtml(value) {
 
 function showStatusBanner(message, type = "error") {
     if (!DOM.statusBanner) return;
+    const icon = type === "success" ? "fa-check-circle" : "fa-exclamation-circle";
     DOM.statusBanner.className = `status-banner ${type}`;
-    DOM.statusBanner.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${escapeHtml(message)}`;
+    DOM.statusBanner.innerHTML = `<i class="fas ${icon}"></i> ${escapeHtml(message)}`;
     DOM.statusBanner.classList.remove("hidden");
 }
 
@@ -401,10 +450,25 @@ function formatAuditAction(action) {
     return AUDIT_ACTION_LABELS[action] || action;
 }
 
+function getAuditDetailLabel(entry) {
+    const details = entry.details && typeof entry.details === "object" ? entry.details : {};
+    return (
+        details.report_title
+        || details.filename
+        || entry.document_filename
+        || entry.report_ref
+        || formatAuditAction(entry.action)
+    );
+}
+
 function formatAuditDetails(entry) {
+    if (entry.has_document) {
+        return getAuditDetailLabel(entry);
+    }
     const bits = [];
     if (entry.details && typeof entry.details === "object") {
         Object.entries(entry.details).forEach(([key, value]) => {
+            if (key === "document_available" || key === "mime_type") return;
             if (value != null && value !== "") {
                 bits.push(`${key}: ${value}`);
             }
@@ -434,6 +498,67 @@ async function recordAudit(action, extra = {}) {
         }
     } catch (e) {
         console.warn("Audit log failed:", e);
+    }
+}
+
+async function archiveAuditDocument(action, blob, filename) {
+    const itemCount = getSelectionCount();
+    if (itemCount === 0 || !blob) return false;
+
+    const formData = new FormData();
+    formData.append("action", action);
+    formData.append("report_ref", state.reportRef || "");
+    formData.append("item_count", String(itemCount));
+    formData.append(
+        "report_title",
+        DOM.docTitleInput.value.trim() || "SaP LISTMAP DATA SPECIFICATION REPORT"
+    );
+    formData.append("filename", filename);
+    formData.append("mime_type", blob.type || "application/pdf");
+    formData.append("file", blob, filename);
+
+    try {
+        const response = await fetch("/api/audit/document", {
+            method: "POST",
+            body: formData
+        });
+        if (handleAuthFailure(response)) return false;
+        if (!response.ok) {
+            console.warn("Document archive failed:", response.status, await response.text());
+            return false;
+        }
+        return true;
+    } catch (e) {
+        console.warn("Document archive failed:", e);
+        return false;
+    }
+}
+
+async function buildPreviewPdfBlob(filename) {
+    const element = document.getElementById("printable-document");
+    const opt = {
+        margin: 15,
+        filename,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false, scrollY: 0 },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        pagebreak: {
+            mode: ["css", "legacy"],
+            avoid: "tr"
+        }
+    };
+
+    setPdfCaptureMode(true);
+    await waitForReflow();
+    try {
+        const pdf = await html2pdf().set(opt).from(element).toPdf().get("pdf");
+        const totalPages = pdf.internal.getNumberOfPages();
+        if (DOM.docPageInfo) {
+            DOM.docPageInfo.textContent = `Page 1 of ${totalPages}`;
+        }
+        return { pdf, blob: pdf.output("blob") };
+    } finally {
+        setPdfCaptureMode(false);
     }
 }
 
@@ -888,42 +1013,280 @@ function waitForReflow() {
 }
 
 async function generatePDF() {
-    const element = document.getElementById("printable-document");
     const refSuffix = state.reportRef ? `_${state.reportRef}` : "";
-    const opt = {
-        margin: 15,
-        filename: `SaP_ListMap_Report${refSuffix}_${new Date().toISOString().split("T")[0]}.pdf`,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false, scrollY: 0 },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        pagebreak: {
-            mode: ["css", "legacy"],
-            avoid: "tr"
-        }
-    };
+    const filename = `SaP_ListMap_Report${refSuffix}_${new Date().toISOString().split("T")[0]}.pdf`;
 
     DOM.btnPdf.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
     DOM.btnPdf.disabled = true;
 
-    setPdfCaptureMode(true);
-    await waitForReflow();
-
     try {
-        const pdf = await html2pdf().set(opt).from(element).toPdf().get("pdf");
-        const totalPages = pdf.internal.getNumberOfPages();
-        if (DOM.docPageInfo) {
-            DOM.docPageInfo.textContent = `Page 1 of ${totalPages}`;
-        }
-        pdf.save(opt.filename);
-        recordAudit("export_pdf");
+        const { pdf, blob } = await buildPreviewPdfBlob(filename);
+        await archiveAuditDocument("export_pdf", blob, filename);
+        pdf.save(filename);
     } catch (err) {
         console.error("PDF generation failed:", err);
         showStatusBanner("PDF generation failed.", "error");
     } finally {
-        setPdfCaptureMode(false);
         DOM.btnPdf.innerHTML = '<i class="fas fa-file-pdf"></i> Generate PDF';
         DOM.btnPdf.disabled = getSelectionCount() === 0;
     }
+}
+
+async function printDocument() {
+    if (getSelectionCount() === 0) return;
+
+    const refSuffix = state.reportRef ? `_${state.reportRef}` : "";
+    const filename = `SaP_ListMap_Print${refSuffix}_${new Date().toISOString().split("T")[0]}.pdf`;
+
+    DOM.btnPrint.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing...';
+    DOM.btnPrint.disabled = true;
+
+    try {
+        const { blob } = await buildPreviewPdfBlob(filename);
+        await archiveAuditDocument("print", blob, filename);
+    } catch (err) {
+        console.error("Print archive failed:", err);
+        showStatusBanner("Could not archive print document, continuing to print.", "error");
+    } finally {
+        DOM.btnPrint.innerHTML = '<i class="fas fa-print"></i> Print';
+        DOM.btnPrint.disabled = getSelectionCount() === 0;
+    }
+
+    window.print();
+}
+
+function getRecordId(category, row) {
+    const keyProp = TABLE_CONFIG[category].keyProp;
+    return row[keyProp];
+}
+
+function getSelectedRecords(category) {
+    return getSelectedSorted(category);
+}
+
+function openRecordModal(category, mode, row = null) {
+    const schema = RECORD_SCHEMA[category];
+    if (!schema || !DOM.recordModal) return;
+
+    recordModalState.category = category;
+    recordModalState.mode = mode;
+    recordModalState.recordData = row;
+    recordModalState.recordId = row ? getRecordId(category, row) : null;
+
+    const actionLabel = mode === "add" ? "Add" : "Edit";
+    DOM.recordModalTitle.innerHTML = `<i class="fas fa-database"></i> ${actionLabel} ${escapeHtml(schema.label)} Record`;
+
+    DOM.recordFormFields.innerHTML = schema.fields
+        .filter((field) => !(mode === "add" && field.hideOnAdd))
+        .map((field) => {
+            const value = row ? (row[field.name] ?? "") : "";
+            const disabled = mode === "edit" && (field.primaryKey || field.readOnlyOnEdit);
+            const required = field.required ? "required" : "";
+            return `
+                <div class="record-form-field">
+                    <label for="record-field-${field.name}">${escapeHtml(field.label)}</label>
+                    <input
+                        type="${field.type}"
+                        id="record-field-${field.name}"
+                        name="${field.name}"
+                        value="${escapeHtml(value)}"
+                        ${required}
+                        ${disabled ? "disabled" : ""}
+                    >
+                </div>
+            `;
+        })
+        .join("");
+
+    DOM.recordModal.classList.remove("hidden");
+    const firstInput = DOM.recordFormFields.querySelector("input:not([disabled])");
+    if (firstInput) firstInput.focus();
+}
+
+function closeRecordModal() {
+    if (!DOM.recordModal) return;
+    DOM.recordModal.classList.add("hidden");
+    recordModalState.category = null;
+    recordModalState.mode = "add";
+    recordModalState.recordId = null;
+    recordModalState.recordData = null;
+    if (DOM.recordForm) DOM.recordForm.reset();
+}
+
+function collectRecordFormData(category) {
+    const schema = RECORD_SCHEMA[category];
+    const data = {};
+    schema.fields.forEach((field) => {
+        if (recordModalState.mode === "add" && field.hideOnAdd) return;
+        const input = document.getElementById(`record-field-${field.name}`);
+        if (!input) return;
+        if (field.type === "number") {
+            data[field.name] = input.value === "" ? null : Number(input.value);
+        } else {
+            data[field.name] = input.value.trim();
+        }
+    });
+    return data;
+}
+
+function removeRecordFromSelection(category, recordId) {
+    const catMap = state.selected[category];
+    if (catMap.has(recordId)) {
+        catMap.delete(recordId);
+        saveSelectionsToSession();
+    }
+}
+
+function upsertRecordInSelection(category, record) {
+    const keyProp = TABLE_CONFIG[category].keyProp;
+    const recordId = record[keyProp];
+    if (state.selected[category].has(recordId)) {
+        state.selected[category].set(recordId, record);
+        saveSelectionsToSession();
+    }
+}
+
+async function saveRecordFromModal(event) {
+    event.preventDefault();
+    const { category, mode, recordId } = recordModalState;
+    if (!category) return;
+
+    const payload = collectRecordFormData(category);
+    const schema = RECORD_SCHEMA[category];
+    for (const field of schema.fields) {
+        if (field.hideOnAdd && mode === "add") continue;
+        if (field.primaryKey && mode === "edit") continue;
+        if (field.required && (payload[field.name] === "" || payload[field.name] === null || Number.isNaN(payload[field.name]))) {
+            showStatusBanner(`${field.label} is required.`, "error");
+            return;
+        }
+    }
+
+    DOM.recordModalSave.disabled = true;
+    DOM.recordModalSave.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+    try {
+        const url = mode === "add"
+            ? `/api/records/${category}`
+            : `/api/records/${category}/${encodeURIComponent(recordId)}`;
+        const response = await fetch(url, {
+            method: mode === "add" ? "POST" : "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        if (handleAuthFailure(response)) return;
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            showStatusBanner(data.error || "Failed to save record.", "error");
+            return;
+        }
+
+        hideStatusBanner();
+        closeRecordModal();
+
+        if (mode === "edit") {
+            upsertRecordInSelection(category, data.record || payload);
+        }
+
+        await fetchFilters();
+        await fetchCategoryRecords(category, mode === "add");
+        renderDocumentPreview();
+        showStatusBanner(`Record ${mode === "add" ? "created" : "updated"} successfully.`, "success");
+        setTimeout(hideStatusBanner, 2500);
+    } catch (e) {
+        console.error("Failed to save record:", e);
+        showStatusBanner("Could not save record. Check your connection.", "error");
+    } finally {
+        DOM.recordModalSave.disabled = false;
+        DOM.recordModalSave.innerHTML = '<i class="fas fa-save"></i> Save';
+    }
+}
+
+async function deleteSelectedRecords(category) {
+    const selected = getSelectedRecords(category);
+    if (selected.length === 0) {
+        showStatusBanner("Select at least one record to delete.", "error");
+        return;
+    }
+
+    const schema = RECORD_SCHEMA[category];
+    const noun = selected.length === 1 ? "record" : `${selected.length} records`;
+    const confirmed = window.confirm(`Delete ${noun} from ${schema.label}? This cannot be undone.`);
+    if (!confirmed) return;
+
+    let deletedCount = 0;
+    let lastError = "";
+
+    for (const row of selected) {
+        const recordId = getRecordId(category, row);
+        try {
+            const response = await fetch(`/api/records/${category}/${encodeURIComponent(recordId)}`, {
+                method: "DELETE"
+            });
+            if (handleAuthFailure(response)) return;
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                lastError = data.error || "Failed to delete record.";
+                continue;
+            }
+
+            removeRecordFromSelection(category, recordId);
+            deletedCount += 1;
+        } catch (e) {
+            console.error("Failed to delete record:", e);
+            lastError = "Could not connect to the server.";
+        }
+    }
+
+    if (deletedCount > 0) {
+        await fetchFilters();
+        await fetchCategoryRecords(category, true);
+        renderDocumentPreview();
+        showStatusBanner(`${deletedCount} record(s) deleted.`, "success");
+        setTimeout(hideStatusBanner, 2500);
+    } else if (lastError) {
+        showStatusBanner(lastError, "error");
+    }
+}
+
+function handleCrudAdd(category) {
+    openRecordModal(category, "add");
+}
+
+function handleCrudEdit(category) {
+    const selected = getSelectedRecords(category);
+    if (selected.length === 0) {
+        showStatusBanner("Select one record to edit.", "error");
+        return;
+    }
+    if (selected.length > 1) {
+        showStatusBanner("Select only one record to edit.", "error");
+        return;
+    }
+    openRecordModal(category, "edit", selected[0]);
+}
+
+function setupCrudEventListeners() {
+    if (!DOM.crudActions || DOM.crudActions.length === 0) return;
+
+    DOM.crudActions.forEach((group) => {
+        const category = group.getAttribute("data-category");
+        const addBtn = group.querySelector(".btn-crud-add");
+        const editBtn = group.querySelector(".btn-crud-edit");
+        const deleteBtn = group.querySelector(".btn-crud-delete");
+
+        if (addBtn) addBtn.addEventListener("click", () => handleCrudAdd(category));
+        if (editBtn) editBtn.addEventListener("click", () => handleCrudEdit(category));
+        if (deleteBtn) deleteBtn.addEventListener("click", () => deleteSelectedRecords(category));
+    });
+
+    if (DOM.recordForm) DOM.recordForm.addEventListener("submit", saveRecordFromModal);
+    if (DOM.recordModalClose) DOM.recordModalClose.addEventListener("click", closeRecordModal);
+    if (DOM.recordModalCancel) DOM.recordModalCancel.addEventListener("click", closeRecordModal);
+    if (DOM.recordModalBackdrop) DOM.recordModalBackdrop.addEventListener("click", closeRecordModal);
 }
 
 function setupEventListeners() {
@@ -1022,10 +1385,7 @@ function setupEventListeners() {
     });
 
     DOM.btnClearSelection.addEventListener("click", clearAllSelection);
-    DOM.btnPrint.addEventListener("click", () => {
-        recordAudit("print");
-        window.print();
-    });
+    DOM.btnPrint.addEventListener("click", printDocument);
     DOM.btnPdf.addEventListener("click", generatePDF);
     if (DOM.btnXlsx) DOM.btnXlsx.addEventListener("click", exportExcel);
     if (DOM.btnAuditLog) DOM.btnAuditLog.addEventListener("click", openAuditModal);
@@ -1034,6 +1394,7 @@ function setupEventListeners() {
     if (DOM.auditModalRefresh) DOM.auditModalRefresh.addEventListener("click", fetchAuditLogs);
     if (DOM.pageSizeSelect) DOM.pageSizeSelect.addEventListener("change", onPageSizeChange);
     DOM.docTitleInput.addEventListener("input", updateDocumentTitleText);
+    setupCrudEventListeners();
 }
 
 function openAuditModal() {
@@ -1072,6 +1433,13 @@ async function fetchAuditLogs() {
 
         DOM.auditTableBody.innerHTML = data.items.map((entry) => {
             const details = formatAuditDetails(entry);
+            const detailsCell = entry.has_document
+                ? `<td class="audit-details-cell">
+                     <button type="button" class="audit-doc-link" data-audit-id="${escapeHtml(String(entry.id))}" title="Open archived document">
+                       <i class="fas fa-file-alt"></i> ${escapeHtml(details)}
+                     </button>
+                   </td>`
+                : `<td class="audit-details-cell" title="${escapeHtml(details)}">${escapeHtml(details)}</td>`;
             return `
             <tr>
                 <td>${escapeHtml(entry.created_at)}</td>
@@ -1080,14 +1448,23 @@ async function fetchAuditLogs() {
                 <td><span class="audit-action-tag">${escapeHtml(formatAuditAction(entry.action))}</span></td>
                 <td>${escapeHtml(entry.report_ref || "—")}</td>
                 <td>${escapeHtml(String(entry.item_count ?? 0))}</td>
-                <td class="audit-details-cell" title="${escapeHtml(details)}">${escapeHtml(details)}</td>
+                ${detailsCell}
             </tr>
         `;
         }).join("");
+
+        DOM.auditTableBody.querySelectorAll(".audit-doc-link").forEach((btn) => {
+            btn.addEventListener("click", () => openAuditDocument(btn.getAttribute("data-audit-id")));
+        });
     } catch (e) {
         console.error("Failed to load audit log:", e);
         DOM.auditTableBody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center;color:var(--text-muted);">Unable to load audit log</td></tr>`;
     }
+}
+
+function openAuditDocument(auditId) {
+    if (!auditId) return;
+    window.open(`/api/audit/${encodeURIComponent(auditId)}/document`, "_blank", "noopener,noreferrer");
 }
 
 function debounce(func, wait) {

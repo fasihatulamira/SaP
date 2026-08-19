@@ -136,6 +136,12 @@ If you installed before audit logging was added:
 mysql -u root -p listmap < migrations/001_audit_log.sql
 ```
 
+If you need archived export/print documents in the audit log:
+
+```bash
+mysql -u root -p listmap < migrations/003_audit_document.sql
+```
+
 ## Production deployment
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for Waitress, nginx HTTPS, and Windows service setup.
