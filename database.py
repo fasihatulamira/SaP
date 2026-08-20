@@ -133,12 +133,36 @@ def get_db_cursor(dictionary=False, commit=False):
             conn.close()
 
 
+def _core_tables_present():
+    """True when the primary LISTMAP table already exists (managed Supabase)."""
+    with get_db_cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = 'public' AND table_name = 'topography'
+            LIMIT 1
+            """
+        )
+        return cursor.fetchone() is not None
+
+
 def ensure_schema_ready():
     """Create tables once per process; safe to call on every request."""
     global _schema_ready
     if _schema_ready:
         return
-    ensure_core_tables()
+    if _core_tables_present():
+        _schema_ready = True
+        return
+    try:
+        ensure_core_tables()
+    except Exception as exc:
+        # Managed Postgres roles (e.g. Supabase app user) may lack CREATE on public.
+        if _core_tables_present():
+            _schema_ready = True
+            return
+        raise exc
     _schema_ready = True
 
 

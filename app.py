@@ -215,7 +215,7 @@ def get_category_records(category):
     except Exception as exc:
         logger.exception("Failed to fetch records for category: %s", category)
         return jsonify({
-            "error": "Database unavailable. If using Aiven free MySQL, power it on and retry.",
+            "error": "Database unavailable. Check DATABASE_URL and that Supabase is running.",
             "detail": str(exc)[:200],
         }), 503
 
