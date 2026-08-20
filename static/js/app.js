@@ -324,11 +324,14 @@ async function fetchCategoryRecords(category, resetPage = false) {
             const data = await response.json();
 
             if (!response.ok || data.error) {
-                if (attempt < maxAttempts && response.status >= 500) {
-                    await new Promise((r) => setTimeout(r, 800 * attempt));
+                if (attempt < maxAttempts && (response.status >= 500 || response.status === 503)) {
+                    await new Promise((r) => setTimeout(r, 1200 * attempt));
                     continue;
                 }
-                showStatusBanner(data.error || "Failed to load records.", "error");
+                showStatusBanner(
+                    data.error || data.detail || "Failed to load records.",
+                    "error"
+                );
                 renderCategoryError(category);
                 state.ui.loading = false;
                 return;

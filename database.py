@@ -3,7 +3,7 @@ import os
 import time
 from contextlib import contextmanager
 import mysql.connector
-from mysql.connector import pooling, Error as MySQLError
+from mysql.connector import Error as MySQLError
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -11,45 +11,73 @@ load_dotenv()
 
 DEFAULT_LIMIT = 10
 MAX_LIMIT = 100
-_CONNECT_RETRIES = 3
-_CONNECT_RETRY_SLEEP_SEC = 1.5
+_CONNECT_RETRIES = 4
+_CONNECT_RETRY_SLEEP_SEC = 2.0
+_schema_ready = False
+
+
+def _env_truthy(name, default=""):
+    return os.getenv(name, default).lower() in ("true", "1", "t", "y", "yes")
 
 
 def _build_db_config():
+    host = (os.getenv("DB_HOST") or "localhost").strip()
     cfg = {
-        "host": os.getenv("DB_HOST", "localhost"),
+        "host": host,
         "port": int(os.getenv("DB_PORT", 3306)),
         "user": os.getenv("DB_USER"),
         "password": os.getenv("DB_PASSWORD"),
         "database": os.getenv("DB_NAME"),
-        "connection_timeout": int(os.getenv("DB_CONNECT_TIMEOUT", "20")),
+        "connection_timeout": int(os.getenv("DB_CONNECT_TIMEOUT", "60")),
         "autocommit": False,
+        "use_pure": True,
     }
-    # Managed hosts (Aiven, etc.) usually require TLS
-    if os.getenv("DB_SSL", "").lower() in ("true", "1", "t", "y", "yes"):
+
+    # Aiven / cloud MySQL require TLS even if DB_SSL was forgotten on Render
+    auto_ssl = "aivencloud.com" in host.lower() or "amazonaws.com" in host.lower()
+    if _env_truthy("DB_SSL") or auto_ssl:
         cfg["ssl_disabled"] = False
-        # Avoid hanging on strict CA verification when no CA bundle is mounted
-        cfg["ssl_verify_cert"] = False
-        cfg["ssl_verify_identity"] = False
+
     return cfg
 
 
 db_config = _build_db_config()
 
-try:
-    db_pool = pooling.MySQLConnectionPool(
-        pool_name="listmap_pool",
-        pool_size=int(os.getenv("DB_POOL_SIZE", "3")),
-        pool_reset_session=True,
-        **db_config,
-    )
-except Exception as e:
-    print("Error initializing connection pool, falling back to direct connections:", e)
-    db_pool = None
+# Free-tier managed MySQL (Aiven) + connection pools often yield stale sockets.
+# Default to short-lived direct connections unless DB_USE_POOL=true.
+db_pool = None
+if _env_truthy("DB_USE_POOL", "false"):
+    try:
+        from mysql.connector import pooling
+
+        pool_cfg = {k: v for k, v in db_config.items() if k != "use_pure"}
+        db_pool = pooling.MySQLConnectionPool(
+            pool_name="listmap_pool",
+            pool_size=int(os.getenv("DB_POOL_SIZE", "3")),
+            pool_reset_session=True,
+            **pool_cfg,
+        )
+    except Exception as e:
+        print("Error initializing connection pool, using direct connections:", e)
+        db_pool = None
+
+
+def db_status():
+    """Safe connection diagnostics for health checks (no secrets)."""
+    return {
+        "host": db_config.get("host"),
+        "port": db_config.get("port"),
+        "database": db_config.get("database"),
+        "user_set": bool(db_config.get("user")),
+        "password_set": db_config.get("password") is not None and db_config.get("password") != "",
+        "ssl": db_config.get("ssl_disabled") is False,
+        "pool": bool(db_pool),
+        "schema_ready": _schema_ready,
+    }
 
 
 def get_connection():
-    """Return a live MySQL connection, retrying briefly for cold managed DBs."""
+    """Return a live MySQL connection, retrying for cold managed DBs."""
     last_error = None
     for attempt in range(1, _CONNECT_RETRIES + 1):
         try:
@@ -57,9 +85,8 @@ def get_connection():
                 conn = db_pool.get_connection()
             else:
                 conn = mysql.connector.connect(**db_config)
-            # Drop stale pooled sockets
             try:
-                conn.ping(reconnect=True, attempts=2, delay=1)
+                conn.ping(reconnect=True, attempts=3, delay=1)
             except Exception:
                 try:
                     conn.close()
@@ -67,12 +94,12 @@ def get_connection():
                     pass
                 raise
             return conn
-        except MySQLError as exc:
+        except Exception as exc:
             last_error = exc
             print(f"DB connect attempt {attempt}/{_CONNECT_RETRIES} failed: {exc}")
             if attempt < _CONNECT_RETRIES:
                 time.sleep(_CONNECT_RETRY_SLEEP_SEC * attempt)
-    raise last_error or MySQLError("Unable to connect to MySQL")
+    raise MySQLError(f"Unable to connect to MySQL after {_CONNECT_RETRIES} attempts: {last_error}")
 
 
 @contextmanager
@@ -95,6 +122,15 @@ def get_db_cursor(dictionary=False, commit=False):
             cursor.close()
         finally:
             conn.close()
+
+
+def ensure_schema_ready():
+    """Create tables once per process; safe to call on every request."""
+    global _schema_ready
+    if _schema_ready:
+        return
+    ensure_core_tables()
+    _schema_ready = True
 
 def _clamp_pagination(page, limit):
     try:

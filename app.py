@@ -59,18 +59,30 @@ limiter = Limiter(
 
 register_auth_routes(app)
 
-try:
-    database.ensure_core_tables()
-except Exception:
-    logger.exception(
-        "Failed to ensure database tables exist — check DB_HOST/DB_USER/DB_PASSWORD/DB_NAME "
-        "(and DB_SSL=true for managed MySQL such as Aiven)"
-    )
+# Do not block startup on a cold/sleeping managed DB (Render + Aiven free tiers).
+# Tables are ensured lazily on the first authenticated data request.
 
 
 @limiter.request_filter
 def _skip_rate_limit_for_static():
     return request.endpoint == "static"
+
+
+@app.route("/api/health", methods=["GET"])
+@limiter.exempt
+def health():
+    """Public health + DB connectivity check (no secrets)."""
+    info = database.db_status()
+    try:
+        with database.get_db_cursor() as cursor:
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+        info["db"] = "ok"
+        return jsonify(info), 200
+    except Exception as exc:
+        info["db"] = "error"
+        info["db_error"] = str(exc)[:300]
+        return jsonify(info), 503
 
 
 def _parse_pagination():
@@ -141,6 +153,7 @@ def get_me():
 def get_filters():
     """Returns lists of active release years and levels for filter dropdowns."""
     try:
+        database.ensure_schema_ready()
         filters = database.get_filter_options()
         return jsonify(filters)
     except Exception:
@@ -157,6 +170,7 @@ def get_category_records(category):
         return jsonify({"error": "Invalid category."}), 400
 
     try:
+        database.ensure_schema_ready()
         page, limit = _parse_pagination()
 
         if category == "topography":
@@ -198,9 +212,12 @@ def get_category_records(category):
             )
 
         return jsonify(result)
-    except Exception:
+    except Exception as exc:
         logger.exception("Failed to fetch records for category: %s", category)
-        return jsonify({"error": API_ERROR_MESSAGE}), 500
+        return jsonify({
+            "error": "Database unavailable. If using Aiven free MySQL, power it on and retry.",
+            "detail": str(exc)[:200],
+        }), 503
 
 
 @app.route("/api/records/<category>", methods=["POST"])

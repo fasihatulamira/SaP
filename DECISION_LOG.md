@@ -1,5 +1,15 @@
 # Decision Log
 
+## 2026-08-20 — Fix stuck table loading (Aiven/Render)
+
+### Decision
+Disable DB pool by default, auto-enable TLS for Aiven hosts, lazy schema ensure, public `/api/health`, clearer 503 errors on record fetch.
+
+### Why
+Live UI stayed on loading / unable to load records — cold Aiven + pooled sockets + startup schema blocking were the likely causes.
+
+---
+
 ## 2026-08-20 — Word export + KEMBARAN I filenames
 
 ### Decision
