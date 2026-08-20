@@ -3,11 +3,13 @@ from io import BytesIO
 
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
 
 
 BLACK = RGBColor(0x00, 0x00, 0x00)
+HEADER_FILL = "FFD966"  # Gold, Accent 4, Lighter 40%
 FIXED_TITLE = "SENARAI LEMBARAN DAN JENIS PETA"
 DEFAULT_SUBTITLE = "EKSESAIS LATIHAN TAHUN 2026"
 
@@ -45,19 +47,30 @@ def _add_section_title(doc, text):
     _set_run_font(run, bold=True, italic=True, underline=True)
 
 
-def _set_cell_text(cell, text, *, bold=False, center=True):
+def _set_cell_shading(cell, fill=HEADER_FILL):
+    tc_pr = cell._tc.get_or_add_tcPr()
+    shd = OxmlElement("w:shd")
+    shd.set(qn("w:val"), "clear")
+    shd.set(qn("w:color"), "auto")
+    shd.set(qn("w:fill"), fill)
+    tc_pr.append(shd)
+
+
+def _set_cell_text(cell, text, *, bold=False, center=True, header=False):
     cell.text = ""
     para = cell.paragraphs[0]
     if center:
         para.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run = para.add_run("" if text is None else str(text))
     _set_run_font(run, bold=bold)
+    if header:
+        _set_cell_shading(cell)
 
 
 def _fill_table(table, headers, rows, total_label):
     hdr = table.rows[0].cells
     for i, header in enumerate(headers):
-        _set_cell_text(hdr[i], header, bold=True)
+        _set_cell_text(hdr[i], header, bold=True, header=True)
 
     for r_idx, row_vals in enumerate(rows, start=1):
         cells = table.rows[r_idx].cells
@@ -65,7 +78,6 @@ def _fill_table(table, headers, rows, total_label):
             _set_cell_text(cells[c_idx], value, bold=False)
 
     total_row = table.rows[-1].cells
-    # Mirror Word sample: TOTAL across leading cells, count in last cell
     for c_idx in range(len(headers) - 1):
         _set_cell_text(total_row[c_idx], "TOTAL", bold=True)
     _set_cell_text(total_row[-1], total_label, bold=True)
@@ -107,8 +119,16 @@ def build_export_docx(report_title, report_ref, selections):
 
     topo = selections.get("topography") or []
     sjungu = selections.get("sjungu") or []
+    section_idx = 0
+
+    def next_label(name):
+        nonlocal section_idx
+        letter = chr(ord("A") + section_idx)
+        section_idx += 1
+        return f"{letter}. {name}"
+
     if topo or sjungu:
-        _add_section_title(doc, "Raster Topography")
+        _add_section_title(doc, next_label("Raster Topography"))
         rows = []
         num = 0
         for r in topo:
@@ -142,7 +162,7 @@ def build_export_docx(report_title, report_ref, selections):
 
     land = selections.get("landused") or []
     if land:
-        _add_section_title(doc, "Landused")
+        _add_section_title(doc, next_label("Landused"))
         rows = [
             [idx + 1, r.get("category", ""), r.get("landused_id", "")]
             for idx, r in enumerate(land)
@@ -156,7 +176,7 @@ def build_export_docx(report_title, report_ref, selections):
 
     dted = selections.get("dted") or []
     if dted:
-        _add_section_title(doc, "Digital Terrain Elevation Data (DTED)")
+        _add_section_title(doc, next_label("Digital Terrain Elevation Data (DTED)"))
         rows = [
             [idx + 1, r.get("id_name", ""), r.get("level", "")]
             for idx, r in enumerate(dted)

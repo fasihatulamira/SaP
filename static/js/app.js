@@ -588,14 +588,20 @@ async function archiveAuditDocument(action, blob, filename) {
 async function buildPreviewPdfBlob(filename) {
     const element = document.getElementById("printable-document");
     const opt = {
-        margin: 15,
+        margin: [12, 15, 15, 15],
         filename,
         image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false, scrollY: 0 },
+        html2canvas: {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            scrollY: 0,
+            backgroundColor: "#ffffff"
+        },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
         pagebreak: {
             mode: ["css", "legacy"],
-            avoid: "tr"
+            avoid: ["tr", ".doc-page-header", ".doc-title-block"]
         }
     };
 
@@ -881,13 +887,15 @@ function renderDocumentPreview() {
     if (DOM.btnDocx) DOM.btnDocx.disabled = false;
 
     let html = "";
+    let sectionOrdinal = 0;
+    const sectionLetter = () => String.fromCharCode(65 + (sectionOrdinal++));
 
     if (selectedTopo.length > 0 || selectedSjungu.length > 0) {
         const totalLabel = formatTopoSjungTotal(selectedTopo.length, selectedSjungu.length);
         let rowNum = 0;
         html += `
             <div class="doc-section">
-                <div class="doc-section-title">Raster Topography</div>
+                <div class="doc-section-title">${sectionLetter()}. Raster Topography</div>
                 <table class="doc-table">
                     <thead>
                         <tr>
@@ -934,7 +942,7 @@ function renderDocumentPreview() {
     if (selectedLand.length > 0) {
         html += `
             <div class="doc-section doc-section-follow">
-                <div class="doc-section-title">Landused</div>
+                <div class="doc-section-title">${sectionLetter()}. Landused</div>
                 <table class="doc-table">
                     <thead>
                         <tr>
@@ -964,7 +972,7 @@ function renderDocumentPreview() {
     if (selectedDted.length > 0) {
         html += `
             <div class="doc-section doc-section-follow">
-                <div class="doc-section-title">Digital Terrain Elevation Data (DTED)</div>
+                <div class="doc-section-title">${sectionLetter()}. Digital Terrain Elevation Data (DTED)</div>
                 <table class="doc-table">
                     <thead>
                         <tr>
