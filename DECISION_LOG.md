@@ -1,5 +1,20 @@
 # Decision Log
 
+## 2026-08-20 — AI Council Cursor rule
+
+### Decision
+Add always-on project rule `.cursor/rules/ai-council.mdc` with seats: Orchestrator, Architect, Design, QA.
+
+### Why
+User wants multi-role discussion on every prompt before execution, consistent with existing Orchestrator / Architect / QA personas plus Design for GIS Info UI/docs.
+
+### Design
+1. Short labeled council brief → Orchestrator verdict → execute → QA check.
+2. Fast path for trivial asks.
+3. Architectural outcomes still append to this log.
+
+---
+
 ## 2026-08-20 — Fix stuck table loading (Aiven/Render)
 
 ### Decision
