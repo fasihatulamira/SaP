@@ -26,7 +26,7 @@ from audit import VALID_ACTIONS, log_event
 from auth import admin_required, get_current_user, login_required, register_auth_routes
 from config import Config
 from export_docx import build_export_docx
-from export_filenames import build_export_filename, build_export_basename
+from export_filenames import build_export_filename
 from export_xlsx import build_export_workbook
 
 logging.basicConfig(
