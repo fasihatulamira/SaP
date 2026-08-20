@@ -585,6 +585,30 @@ async function archiveAuditDocument(action, blob, filename) {
     }
 }
 
+function applyPdfFrameChrome(frame) {
+    frame.style.width = "794px";
+    frame.style.maxWidth = "794px";
+    frame.style.overflow = "visible";
+    frame.style.border = "none";
+    frame.style.outline = "none";
+    frame.style.boxShadow = "none";
+    frame.style.filter = "none";
+    frame.style.borderRadius = "0";
+    frame.style.background = "#ffffff";
+}
+
+function clearPdfFrameChrome(frame) {
+    frame.style.width = "";
+    frame.style.maxWidth = "";
+    frame.style.overflow = "";
+    frame.style.border = "";
+    frame.style.outline = "";
+    frame.style.boxShadow = "";
+    frame.style.filter = "";
+    frame.style.borderRadius = "";
+    frame.style.background = "";
+}
+
 function setPdfCaptureMode(enabled) {
     const frame = document.getElementById("printable-document");
     document.body.classList.toggle("pdf-exporting", enabled);
@@ -595,23 +619,31 @@ function setPdfCaptureMode(enabled) {
     if (enabled) {
         // Capture at full A4 content width so the right edge is not clipped
         // by the narrow preview column / overflow-x:hidden on body.
-        frame.style.width = "794px";
-        frame.style.maxWidth = "794px";
-        // html2canvas renders a blank image when ancestors use backdrop-filter.
+        applyPdfFrameChrome(frame);
+        // html2canvas paints ancestor glass shadows / backdrop-filter as faint edges.
         let parent = frame.parentElement;
         while (parent) {
             parent.dataset.pdfExportBackdrop = parent.style.backdropFilter || "";
+            parent.dataset.pdfExportShadow = parent.style.boxShadow || "";
+            parent.dataset.pdfExportBorder = parent.style.border || "";
             parent.style.backdropFilter = "none";
             parent.style.webkitBackdropFilter = "none";
+            parent.style.boxShadow = "none";
+            parent.style.border = "none";
+            parent.style.filter = "none";
             parent = parent.parentElement;
         }
     } else {
-        frame.style.width = "";
-        frame.style.maxWidth = "";
+        clearPdfFrameChrome(frame);
         document.querySelectorAll("[data-pdf-export-backdrop]").forEach((node) => {
             node.style.backdropFilter = node.dataset.pdfExportBackdrop || "";
             node.style.webkitBackdropFilter = "";
+            node.style.boxShadow = node.dataset.pdfExportShadow || "";
+            node.style.border = node.dataset.pdfExportBorder || "";
+            node.style.filter = "";
             delete node.dataset.pdfExportBackdrop;
+            delete node.dataset.pdfExportShadow;
+            delete node.dataset.pdfExportBorder;
         });
     }
 }
@@ -621,9 +653,7 @@ function preparePdfCloneDocument(clonedDoc) {
     const clonedFrame = clonedDoc.getElementById("printable-document");
     if (clonedFrame) {
         clonedFrame.classList.add("pdf-capture");
-        clonedFrame.style.width = "794px";
-        clonedFrame.style.maxWidth = "794px";
-        clonedFrame.style.overflow = "visible";
+        applyPdfFrameChrome(clonedFrame);
     }
     const clonedContent = clonedDoc.getElementById("doc-content");
     if (clonedContent) {
@@ -633,6 +663,8 @@ function preparePdfCloneDocument(clonedDoc) {
         node.style.backdropFilter = "none";
         node.style.webkitBackdropFilter = "none";
         node.style.filter = "none";
+        node.style.boxShadow = "none";
+        node.style.border = "none";
     });
 }
 

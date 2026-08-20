@@ -27,6 +27,11 @@ GIS catalog copied into project `gis-info` (`adtftwtentpkmivszpjf`): topography 
 - **Fix:** Disable backdrop-filter during capture (`body.pdf-exporting`), `onclone` cleanup, full height capture; download PDF before audit archive. `static/js/app.js`, `static/css/style.css`.
 - **Verify:** After Render deploy of this commit, Generate PDF shows KEMBARAN I + selected rows.
 
+### QA fix (2026-08-20) — PDF faint card shadow border
+- **Root cause:** `body.light-theme .document-frame` box-shadow beat `.document-frame.pdf-capture` specificity, so html2canvas painted a soft card edge.
+- **Fix:** Stronger PDF-capture selectors + inline chrome wipe (shadow/border/filter) on frame and ancestors.
+- **Verify:** Regenerated PDF has no floating card outline; only document text + table borders.
+
 ---
 
 ## 2026-08-20 — Supabase branch (PostgreSQL, separate Render URL)
