@@ -963,7 +963,7 @@ function renderDocumentPreview() {
             <div class="empty-state">
                 <div class="empty-state-icon"><i class="fas fa-file-invoice"></i></div>
                 <h3>Your Document is Empty</h3>
-                <p>Select records from the categories in the left panel to compile your GIS Info document.</p>
+                <p>Select records from the categories in the left panel to compile your GIS INFO document.</p>
             </div>
         `;
         DOM.btnClearSelection.disabled = true;
