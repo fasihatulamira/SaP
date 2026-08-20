@@ -1,5 +1,24 @@
 # Decision Log
 
+## 2026-08-20 — Supabase MCP connected + listmap schema applied
+
+### Decision
+Install official hosted Supabase MCP (`https://mcp.supabase.com/mcp`) for this repo, create project **gis-info** (`adtftwtentpkmivszpjf`, region `ap-southeast-1`), apply the same six-table MySQL `listmap` structure.
+
+### QA
+- MCP: **PASS** (`user-supabase` authenticated)
+- Tables: topography, dted, landused, sjung, audit_log, audit_document — PKs and camelCase columns match MySQL
+- RLS enabled on all six (Flask uses Postgres URI, not the public anon API)
+- Cost: **$0/month** free project
+
+### Next
+Copy local MySQL rows with `copy_local_to_supabase.py` after setting `DATABASE_URL` from the Supabase dashboard.
+
+### Copy result (2026-08-20)
+GIS catalog copied into project `gis-info` (`adtftwtentpkmivszpjf`): topography 23, dted 7, landused 13, sjung 2, audit_log 33. `audit_document` blobs were not copied (PDFs). Render service creation still needs a logged-in Render dashboard + `DATABASE_URL`.
+
+---
+
 ## 2026-08-20 — Supabase branch (PostgreSQL, separate Render URL)
 
 ### Decision

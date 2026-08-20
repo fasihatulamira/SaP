@@ -3,6 +3,32 @@
 This branch (`supabase`) uses **Supabase PostgreSQL** instead of Aiven MySQL.  
 Production on `main` (`https://sap-listmap.onrender.com`) is **not** affected.
 
+## 0. Cursor MCP (this repo)
+
+`.cursor/mcp.json` includes the official hosted Supabase MCP:
+
+```json
+"supabase": { "url": "https://mcp.supabase.com/mcp" }
+```
+
+1. Cursor **Settings → Tools & MCP**
+2. Enable **supabase**
+3. Complete the browser login when Cursor prompts (grant the org that will own GIS Info)
+
+After that, this chat can list projects, apply `supabase/migrations/20260820120000_listmap_schema.sql`, and verify tables.
+
+**Live project (created 2026-08-20):**
+
+| Field | Value |
+|-------|--------|
+| Name | `gis-info` |
+| Ref | `adtftwtentpkmivszpjf` |
+| Region | `ap-southeast-1` (Singapore) |
+| Dashboard | https://supabase.com/dashboard/project/adtftwtentpkmivszpjf |
+| API URL | https://adtftwtentpkmivszpjf.supabase.co |
+
+Schema is already applied on this project (same 6 tables as MySQL `listmap`).
+
 ## 1. Create Supabase project
 
 1. Sign up at [https://supabase.com](https://supabase.com) (free tier available).
