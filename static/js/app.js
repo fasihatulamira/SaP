@@ -585,17 +585,47 @@ async function archiveAuditDocument(action, blob, filename) {
     }
 }
 
+function setPdfCaptureMode(enabled) {
+    const frame = document.getElementById("printable-document");
+    document.body.classList.toggle("pdf-exporting", enabled);
+    if (DOM.docContent) DOM.docContent.classList.toggle("pdf-capture", enabled);
+    if (!frame) return;
+
+    frame.classList.toggle("pdf-capture", enabled);
+    if (enabled) {
+        // Capture at full A4 content width so the right edge is not clipped
+        // by the narrow preview column / overflow-x:hidden on body.
+        frame.style.width = "794px";
+        frame.style.maxWidth = "794px";
+    } else {
+        frame.style.width = "";
+        frame.style.maxWidth = "";
+    }
+}
+
 async function buildPreviewPdfBlob(filename) {
     const element = document.getElementById("printable-document");
+    setPdfCaptureMode(true);
+    await waitForReflow();
+
+    const captureWidth = Math.ceil(Math.max(element.scrollWidth, element.offsetWidth, 794));
+    const captureHeight = Math.ceil(Math.max(element.scrollHeight, element.offsetHeight));
+
     const opt = {
-        margin: [12, 15, 15, 15],
+        margin: [12, 12, 12, 12],
         filename,
         image: { type: "jpeg", quality: 0.98 },
         html2canvas: {
             scale: 2,
             useCORS: true,
             logging: false,
+            scrollX: 0,
             scrollY: 0,
+            x: 0,
+            y: 0,
+            width: captureWidth,
+            windowWidth: captureWidth,
+            windowHeight: captureHeight,
             backgroundColor: "#ffffff"
         },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
@@ -605,8 +635,6 @@ async function buildPreviewPdfBlob(filename) {
         }
     };
 
-    setPdfCaptureMode(true);
-    await waitForReflow();
     try {
         const pdf = await html2pdf().set(opt).from(element).toPdf().get("pdf");
         const totalPages = pdf.internal.getNumberOfPages();
@@ -1100,12 +1128,6 @@ function updateDocumentTitleText() {
     if (docTitleEl) {
         docTitleEl.textContent = inputTitle || DEFAULT_DOC_SUBTITLE;
     }
-}
-
-function setPdfCaptureMode(enabled) {
-    const frame = document.getElementById("printable-document");
-    if (frame) frame.classList.toggle("pdf-capture", enabled);
-    if (DOM.docContent) DOM.docContent.classList.toggle("pdf-capture", enabled);
 }
 
 function waitForReflow() {
