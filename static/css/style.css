@@ -527,6 +527,23 @@ tr.selected .custom-checkbox i {
     cursor: not-allowed;
 }
 
+.btn-word {
+    background: linear-gradient(135deg, #2b579a, #1e3f73);
+    color: white;
+    box-shadow: 0 4px 15px rgba(43, 87, 154, 0.3);
+}
+
+.btn-word:hover:not(:disabled) {
+    background: linear-gradient(135deg, #1e3f73, #2b579a);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(43, 87, 154, 0.4);
+}
+
+.btn-word:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
 .btn-outline {
     background: transparent;
     border: 1px solid var(--border-color);

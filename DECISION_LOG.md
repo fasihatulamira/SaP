@@ -1,5 +1,15 @@
 # Decision Log
 
+## 2026-08-20 — Word export + KEMBARAN I filenames
+
+### Decision
+Add Word (.docx) export matching KEMBARAN I layout; all export downloads use `KEMBARAN I - GIS INFO {subtitle}`.
+
+### Why
+User requested Word export and consistent official naming across print/PDF/Word/Excel.
+
+---
+
 ## 2026-08-20 — Load reliability + KEMBARAN mark + black input text
 
 ### Decision

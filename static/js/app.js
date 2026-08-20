@@ -4,6 +4,23 @@ const PAGE_SIZE_STORAGE_KEY = "gis_info_page_size";
 const PAGE_SIZE_OPTIONS = [8, 10, 15];
 const DEFAULT_PAGE_SIZE = 10;
 const DEFAULT_DOC_SUBTITLE = "EKSESAIS LATIHAN TAHUN 2026";
+const EXPORT_NAME_PREFIX = "KEMBARAN I - GIS INFO";
+
+function getDocumentSubtitle() {
+    return (DOM.docTitleInput && DOM.docTitleInput.value.trim()) || DEFAULT_DOC_SUBTITLE;
+}
+
+function getExportBasename() {
+    const subtitle = getDocumentSubtitle().replace(/\s+/g, " ").trim();
+    return `${EXPORT_NAME_PREFIX} ${subtitle}`;
+}
+
+function getExportFilename(extension) {
+    const ext = String(extension || "pdf").replace(/^\./, "");
+    // Keep spaces; strip characters illegal in Windows/macOS filenames
+    const safe = getExportBasename().replace(/[<>:"/\\|?*\u0000-\u001f]/g, "").trim();
+    return `${safe}.${ext}`;
+}
 
 const state = {
     records: {
@@ -73,6 +90,7 @@ const DOM = {
     btnPrint: document.getElementById("btn-print"),
     btnPdf: document.getElementById("btn-pdf"),
     btnXlsx: document.getElementById("btn-xlsx"),
+    btnDocx: document.getElementById("btn-docx"),
     btnAuditLog: document.getElementById("btn-audit-log"),
     btnClearSelection: document.getElementById("btn-clear-selection"),
     docTitleInput: document.getElementById("doc-title-input"),
@@ -468,6 +486,7 @@ const AUDIT_ACTION_LABELS = {
     login_failed: "Failed sign in",
     create_report: "Report created",
     export_xlsx: "Excel export",
+    export_docx: "Word export",
     export_pdf: "PDF export",
     print: "Print",
     clear_selection: "Clear selection"
@@ -540,7 +559,7 @@ async function archiveAuditDocument(action, blob, filename) {
     formData.append("item_count", String(itemCount));
     formData.append(
         "report_title",
-        DOM.docTitleInput.value.trim() || DEFAULT_DOC_SUBTITLE
+        getDocumentSubtitle()
     );
     formData.append("filename", filename);
     formData.append("mime_type", blob.type || "application/pdf");
@@ -844,6 +863,7 @@ function renderDocumentPreview() {
         DOM.btnPrint.disabled = true;
         DOM.btnPdf.disabled = true;
         if (DOM.btnXlsx) DOM.btnXlsx.disabled = true;
+        if (DOM.btnDocx) DOM.btnDocx.disabled = true;
         if (DOM.docRef) DOM.docRef.textContent = "—";
         if (DOM.docPageInfo) DOM.docPageInfo.textContent = "Page 1 of 1";
         return;
@@ -855,6 +875,7 @@ function renderDocumentPreview() {
     DOM.btnPrint.disabled = false;
     DOM.btnPdf.disabled = false;
     if (DOM.btnXlsx) DOM.btnXlsx.disabled = false;
+    if (DOM.btnDocx) DOM.btnDocx.disabled = false;
 
     let html = "";
 
@@ -987,7 +1008,7 @@ async function exportExcel() {
             body: JSON.stringify({
                 ...payload,
                 report_ref: state.reportRef,
-                report_title: DOM.docTitleInput.value.trim() || DEFAULT_DOC_SUBTITLE
+                report_title: getDocumentSubtitle()
             })
         });
         if (handleAuthFailure(response)) return;
@@ -1000,9 +1021,9 @@ async function exportExcel() {
         const blob = await response.blob();
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
-        const refSuffix = state.reportRef ? `_${state.reportRef}` : "";
+        const filename = getExportFilename("xlsx");
         link.href = url;
-        link.download = `GIS_Info_Export${refSuffix}_${new Date().toISOString().split("T")[0]}.xlsx`;
+        link.download = filename;
         link.click();
         URL.revokeObjectURL(url);
     } catch (e) {
@@ -1012,6 +1033,52 @@ async function exportExcel() {
         if (DOM.btnXlsx) {
             DOM.btnXlsx.innerHTML = '<i class="fas fa-file-excel"></i> Excel';
             DOM.btnXlsx.disabled = getSelectionCount() === 0;
+        }
+    }
+}
+
+async function exportWord() {
+    const payload = getSelectionPayload();
+    const itemCount = getSelectionCount();
+    if (itemCount === 0) return;
+
+    if (DOM.btnDocx) {
+        DOM.btnDocx.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Word';
+        DOM.btnDocx.disabled = true;
+    }
+
+    try {
+        const response = await fetch("/api/export/docx", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                ...payload,
+                report_ref: state.reportRef,
+                report_title: getDocumentSubtitle()
+            })
+        });
+        if (handleAuthFailure(response)) return;
+        if (!response.ok) {
+            const err = await response.json();
+            showStatusBanner(err.error || "Word export failed.", "error");
+            return;
+        }
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        const filename = getExportFilename("docx");
+        link.href = url;
+        link.download = filename;
+        link.click();
+        URL.revokeObjectURL(url);
+    } catch (e) {
+        console.error("Word export failed:", e);
+        showStatusBanner("Word export failed.", "error");
+    } finally {
+        if (DOM.btnDocx) {
+            DOM.btnDocx.innerHTML = '<i class="fas fa-file-word"></i> Word';
+            DOM.btnDocx.disabled = getSelectionCount() === 0;
         }
     }
 }
@@ -1037,8 +1104,7 @@ function waitForReflow() {
 }
 
 async function generatePDF() {
-    const refSuffix = state.reportRef ? `_${state.reportRef}` : "";
-    const filename = `GIS_Info_Report${refSuffix}_${new Date().toISOString().split("T")[0]}.pdf`;
+    const filename = getExportFilename("pdf");
 
     DOM.btnPdf.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
     DOM.btnPdf.disabled = true;
@@ -1057,10 +1123,9 @@ async function generatePDF() {
 }
 
 async function printDocument() {
-    if (getSelectionCount() === 0) return;
-
-    const refSuffix = state.reportRef ? `_${state.reportRef}` : "";
-    const filename = `GIS_Info_Print${refSuffix}_${new Date().toISOString().split("T")[0]}.pdf`;
+    const filename = getExportFilename("pdf");
+    const previousTitle = document.title;
+    document.title = getExportBasename();
 
     DOM.btnPrint.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing...';
     DOM.btnPrint.disabled = true;
@@ -1069,7 +1134,7 @@ async function printDocument() {
         const { blob } = await buildPreviewPdfBlob(filename);
         await archiveAuditDocument("print", blob, filename);
     } catch (err) {
-        console.error("Print archive failed:", err);
+        console.warn("Print archive failed:", err);
         showStatusBanner("Could not archive print document, continuing to print.", "error");
     } finally {
         DOM.btnPrint.innerHTML = '<i class="fas fa-print"></i> Print';
@@ -1077,6 +1142,7 @@ async function printDocument() {
     }
 
     window.print();
+    document.title = previousTitle;
 }
 
 function getRecordId(category, row) {
@@ -1412,6 +1478,7 @@ function setupEventListeners() {
     DOM.btnPrint.addEventListener("click", printDocument);
     DOM.btnPdf.addEventListener("click", generatePDF);
     if (DOM.btnXlsx) DOM.btnXlsx.addEventListener("click", exportExcel);
+    if (DOM.btnDocx) DOM.btnDocx.addEventListener("click", exportWord);
     if (DOM.btnAuditLog) DOM.btnAuditLog.addEventListener("click", openAuditModal);
     if (DOM.auditModalClose) DOM.auditModalClose.addEventListener("click", closeAuditModal);
     if (DOM.auditModalBackdrop) DOM.auditModalBackdrop.addEventListener("click", closeAuditModal);

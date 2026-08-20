@@ -10,6 +10,7 @@ VALID_ACTIONS = (
     "login_failed",
     "create_report",
     "export_xlsx",
+    "export_docx",
     "export_pdf",
     "print",
     "clear_selection",

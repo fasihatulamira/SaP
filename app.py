@@ -25,6 +25,8 @@ from database import (
 from audit import VALID_ACTIONS, log_event
 from auth import admin_required, get_current_user, login_required, register_auth_routes
 from config import Config
+from export_docx import build_export_docx
+from export_filenames import build_export_filename, build_export_basename
 from export_xlsx import build_export_workbook
 
 logging.basicConfig(
@@ -35,11 +37,12 @@ logger = logging.getLogger(__name__)
 
 API_ERROR_MESSAGE = "An internal error occurred. Please try again later."
 VALID_CATEGORIES = ("topography", "dted", "landused", "sjungu")
-DOCUMENT_ACTIONS = frozenset({"export_xlsx", "export_pdf", "print"})
+DOCUMENT_ACTIONS = frozenset({"export_xlsx", "export_docx", "export_pdf", "print"})
 MAX_AUDIT_DOCUMENT_BYTES = 15 * 1024 * 1024
 ALLOWED_DOCUMENT_MIME_TYPES = {
     "application/pdf": ".pdf",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
 }
 
 app = Flask(__name__)
@@ -413,7 +416,7 @@ def create_audit_with_document():
     report_title = (request.form.get("report_title") or "").strip()
     filename = _safe_filename(
         request.form.get("filename") or uploaded.filename,
-        fallback=f"GIS_Info_{action}{ALLOWED_DOCUMENT_MIME_TYPES[mime_type]}",
+        fallback=build_export_filename(report_title, ALLOWED_DOCUMENT_MIME_TYPES[mime_type].lstrip(".")),
     )
 
     details = {
@@ -479,7 +482,7 @@ def export_xlsx():
     try:
         buffer = build_export_workbook(report_title, report_ref, selections)
         file_data = buffer.getvalue()
-        filename = f"GIS_Info_Export_{report_ref or 'report'}.xlsx"
+        filename = build_export_filename(report_title, "xlsx")
         mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         audit_id = log_event(
             "export_xlsx",
@@ -502,6 +505,50 @@ def export_xlsx():
         )
     except Exception:
         logger.exception("Failed to generate Excel export")
+        return jsonify({"error": API_ERROR_MESSAGE}), 500
+
+
+@app.route("/api/export/docx", methods=["POST"])
+@login_required
+@limiter.limit("20 per minute")
+def export_docx():
+    """Generate a Word (.docx) KEMBARAN I document from selected records."""
+    data = request.get_json(silent=True) or {}
+    selections = {cat: data.get(cat) or [] for cat in VALID_CATEGORIES}
+    item_count = _selection_item_count(selections)
+
+    if item_count == 0:
+        return jsonify({"error": "No records selected for export."}), 400
+
+    report_ref = data.get("report_ref")
+    report_title = data.get("report_title", "EKSESAIS LATIHAN TAHUN 2026")
+
+    try:
+        buffer = build_export_docx(report_title, report_ref, selections)
+        file_data = buffer.getvalue()
+        filename = build_export_filename(report_title, "docx")
+        mime_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        audit_id = log_event(
+            "export_docx",
+            report_ref=report_ref,
+            item_count=item_count,
+            details={
+                "report_title": report_title,
+                "filename": filename,
+                "mime_type": mime_type,
+                "document_available": True,
+            },
+        )
+        if audit_id:
+            _store_audit_document(audit_id, filename, mime_type, file_data)
+        return send_file(
+            BytesIO(file_data),
+            as_attachment=True,
+            download_name=filename,
+            mimetype=mime_type,
+        )
+    except Exception:
+        logger.exception("Failed to generate Word export")
         return jsonify({"error": API_ERROR_MESSAGE}), 500
 
 

@@ -104,11 +104,13 @@ class TestExcelExport:
                 "landused": [],
                 "sjungu": [],
                 "report_ref": "LM-TEST",
+                "report_title": "EKSESAIS LATIHAN TAHUN 2026",
             },
         )
 
         assert response.status_code == 200
         assert "spreadsheetml" in response.content_type
+        assert "KEMBARAN I - GIS INFO" in response.headers.get("Content-Disposition", "")
         mock_log.assert_called_once()
         mock_store.assert_called_once()
         assert mock_store.call_args[0][0] == 42
@@ -116,6 +118,39 @@ class TestExcelExport:
     def test_export_xlsx_requires_selection(self, auth_client):
         response = auth_client.post(
             "/api/export/xlsx",
+            json={"topography": [], "dted": [], "landused": [], "sjungu": []},
+        )
+        assert response.status_code == 400
+
+
+class TestWordExport:
+    @patch("app._store_audit_document")
+    @patch("app.log_event")
+    @patch("app.build_export_docx")
+    def test_export_docx_returns_file(self, mock_build, mock_log, mock_store, auth_client):
+        mock_build.return_value = BytesIO(b"fake-docx")
+        mock_log.return_value = 55
+
+        response = auth_client.post(
+            "/api/export/docx",
+            json={
+                "topography": [{"sheetNum": "AP24", "sheetName": "X", "sheetScale": "1:50k", "release_year": 2017}],
+                "dted": [],
+                "landused": [],
+                "sjungu": [],
+                "report_title": "EKSESAIS LATIHAN TAHUN 2026",
+            },
+        )
+
+        assert response.status_code == 200
+        assert "wordprocessingml" in response.content_type
+        assert "KEMBARAN I - GIS INFO" in response.headers.get("Content-Disposition", "")
+        mock_log.assert_called_once()
+        mock_store.assert_called_once()
+
+    def test_export_docx_requires_selection(self, auth_client):
+        response = auth_client.post(
+            "/api/export/docx",
             json={"topography": [], "dted": [], "landused": [], "sjungu": []},
         )
         assert response.status_code == 400
