@@ -1,6 +1,14 @@
 # Decision Log
 
-## 2026-08-19 — GIS Info branding + KEMBARAN I document format
+## 2026-08-20 — Load reliability + KEMBARAN mark + black input text
+
+### Decision
+Harden MySQL connects (retry/ping/SSL/timeouts), retry record fetches client-side, set document input text to black, add top-right **KEMBARAN I** mark.
+
+### Why
+Live site showed slow/failed "Unable to load records" (cold Aiven + flaky pooled sockets). User clarified red was only a Word edit marker — printed text should be black. Word header has right-aligned KEMBARAN I.
+
+---
 
 ### Decision
 Rebrand the app to **GIS Info** and match printable/PDF output to `KEMBARAN I - GIS INFO.docx` (Times New Roman 12pt; red `#EE0000` = editable/input data).

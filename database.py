@@ -1,8 +1,9 @@
 import json
 import os
+import time
 from contextlib import contextmanager
 import mysql.connector
-from mysql.connector import pooling
+from mysql.connector import pooling, Error as MySQLError
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -10,33 +11,69 @@ load_dotenv()
 
 DEFAULT_LIMIT = 10
 MAX_LIMIT = 100
+_CONNECT_RETRIES = 3
+_CONNECT_RETRY_SLEEP_SEC = 1.5
 
-db_config = {
-    "host": os.getenv("DB_HOST", "localhost"),
-    "port": int(os.getenv("DB_PORT", 3306)),
-    "user": os.getenv("DB_USER"),
-    "password": os.getenv("DB_PASSWORD"),
-    "database": os.getenv("DB_NAME"),
-}
 
-# Managed hosts (Aiven, etc.) usually require TLS
-if os.getenv("DB_SSL", "").lower() in ("true", "1", "t", "y", "yes"):
-    db_config["ssl_disabled"] = False
+def _build_db_config():
+    cfg = {
+        "host": os.getenv("DB_HOST", "localhost"),
+        "port": int(os.getenv("DB_PORT", 3306)),
+        "user": os.getenv("DB_USER"),
+        "password": os.getenv("DB_PASSWORD"),
+        "database": os.getenv("DB_NAME"),
+        "connection_timeout": int(os.getenv("DB_CONNECT_TIMEOUT", "20")),
+        "autocommit": False,
+    }
+    # Managed hosts (Aiven, etc.) usually require TLS
+    if os.getenv("DB_SSL", "").lower() in ("true", "1", "t", "y", "yes"):
+        cfg["ssl_disabled"] = False
+        # Avoid hanging on strict CA verification when no CA bundle is mounted
+        cfg["ssl_verify_cert"] = False
+        cfg["ssl_verify_identity"] = False
+    return cfg
+
+
+db_config = _build_db_config()
 
 try:
     db_pool = pooling.MySQLConnectionPool(
         pool_name="listmap_pool",
-        pool_size=5,
-        **db_config
+        pool_size=int(os.getenv("DB_POOL_SIZE", "3")),
+        pool_reset_session=True,
+        **db_config,
     )
 except Exception as e:
     print("Error initializing connection pool, falling back to direct connections:", e)
     db_pool = None
 
+
 def get_connection():
-    if db_pool:
-        return db_pool.get_connection()
-    return mysql.connector.connect(**db_config)
+    """Return a live MySQL connection, retrying briefly for cold managed DBs."""
+    last_error = None
+    for attempt in range(1, _CONNECT_RETRIES + 1):
+        try:
+            if db_pool:
+                conn = db_pool.get_connection()
+            else:
+                conn = mysql.connector.connect(**db_config)
+            # Drop stale pooled sockets
+            try:
+                conn.ping(reconnect=True, attempts=2, delay=1)
+            except Exception:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+                raise
+            return conn
+        except MySQLError as exc:
+            last_error = exc
+            print(f"DB connect attempt {attempt}/{_CONNECT_RETRIES} failed: {exc}")
+            if attempt < _CONNECT_RETRIES:
+                time.sleep(_CONNECT_RETRY_SLEEP_SEC * attempt)
+    raise last_error or MySQLError("Unable to connect to MySQL")
+
 
 @contextmanager
 def get_db_cursor(dictionary=False, commit=False):
@@ -48,11 +85,16 @@ def get_db_cursor(dictionary=False, commit=False):
         if commit:
             conn.commit()
     except Exception:
-        conn.rollback()
+        try:
+            conn.rollback()
+        except Exception:
+            pass
         raise
     finally:
-        cursor.close()
-        conn.close()
+        try:
+            cursor.close()
+        finally:
+            conn.close()
 
 def _clamp_pagination(page, limit):
     try:

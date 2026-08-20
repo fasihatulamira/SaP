@@ -676,7 +676,19 @@ body.light-theme .document-frame {
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
 }
 
-/* KEMBARAN I — fixed title (black) + editable subtitle (red) */
+/* KEMBARAN I — fixed title + editable subtitle (black; subtitle is input data) */
+.doc-kembaran-mark {
+    position: absolute;
+    top: 28px;
+    right: 40px;
+    font-family: "Times New Roman", Times, serif;
+    font-size: 12pt;
+    font-weight: 400;
+    color: #000000;
+    text-align: right;
+    line-height: 1.2;
+}
+
 .doc-main-title {
     font-family: "Times New Roman", Times, serif;
     font-size: 12pt;
@@ -685,7 +697,7 @@ body.light-theme .document-frame {
     text-decoration: underline;
     text-transform: uppercase;
     color: #000000;
-    margin: 0 0 0.25rem;
+    margin: 1.5rem 0 0.25rem;
 }
 
 .doc-subtitle {
@@ -696,10 +708,11 @@ body.light-theme .document-frame {
     text-decoration: underline;
     text-transform: uppercase;
     margin: 0 0 1.25rem;
+    color: #000000;
 }
 
 .doc-input-text {
-    color: #EE0000 !important;
+    color: #000000 !important;
     font-family: "Times New Roman", Times, serif;
     font-size: 12pt;
 }
@@ -1168,6 +1181,7 @@ body.light-theme .status-banner.success {
     .doc-main-title,
     .doc-subtitle,
     .doc-section-title,
+    .doc-kembaran-mark,
     .doc-table,
     .doc-table th,
     .doc-table td {
@@ -1175,8 +1189,15 @@ body.light-theme .status-banner.success {
         font-size: 12pt !important;
     }
 
+    .doc-kembaran-mark {
+        position: absolute !important;
+        top: 0 !important;
+        right: 0 !important;
+        color: #000000 !important;
+    }
+
     .doc-input-text {
-        color: #EE0000 !important;
+        color: #000000 !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
     }
@@ -1221,7 +1242,7 @@ body.light-theme .status-banner.success {
     }
 
     .doc-table tr.doc-total-row td.doc-input-text {
-        color: #EE0000 !important;
+        color: #000000 !important;
     }
 
     .doc-table tr.doc-total-row td {

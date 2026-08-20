@@ -282,34 +282,62 @@ async function fetchCategoryRecords(category, resetPage = false) {
     setCategoryTableLoading(category);
     state.ui.loading = true;
 
-    try {
-        const params = buildCategoryParams(category);
-        const response = await fetch(`/api/records/${category}?${params.toString()}`);
-        if (handleAuthFailure(response)) return;
+    const maxAttempts = 3;
 
-        const data = await response.json();
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            const params = buildCategoryParams(category);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 45000);
+            let response;
+            try {
+                response = await fetch(`/api/records/${category}?${params.toString()}`, {
+                    signal: controller.signal
+                });
+            } finally {
+                clearTimeout(timeoutId);
+            }
 
-        if (!response.ok || data.error) {
-            showStatusBanner(data.error || "Failed to load records.", "error");
-            renderCategoryError(category);
+            if (handleAuthFailure(response)) {
+                state.ui.loading = false;
+                return;
+            }
+
+            const data = await response.json();
+
+            if (!response.ok || data.error) {
+                if (attempt < maxAttempts && response.status >= 500) {
+                    await new Promise((r) => setTimeout(r, 800 * attempt));
+                    continue;
+                }
+                showStatusBanner(data.error || "Failed to load records.", "error");
+                renderCategoryError(category);
+                state.ui.loading = false;
+                return;
+            }
+
+            hideStatusBanner();
+            state.records[category] = data.items;
+            state.pagination[category].page = data.page;
+            state.pagination[category].limit = data.limit;
+            state.pagination[category].total = data.total;
+            state.pagination[category].totalPages = data.total_pages;
+            renderCategoryTable(category);
+            state.ui.loading = false;
             return;
+        } catch (e) {
+            console.error(`Network error fetching ${category} (attempt ${attempt}):`, e);
+            if (attempt < maxAttempts) {
+                await new Promise((r) => setTimeout(r, 1000 * attempt));
+                continue;
+            }
+            showStatusBanner(
+                "Could not load records. The database may be waking up — wait a few seconds and refresh.",
+                "error"
+            );
+            renderCategoryError(category);
+            state.ui.loading = false;
         }
-
-        hideStatusBanner();
-
-        state.records[category] = data.items;
-        state.pagination[category].page = data.page;
-        state.pagination[category].limit = data.limit;
-        state.pagination[category].total = data.total;
-        state.pagination[category].totalPages = data.total_pages;
-
-        renderCategoryTable(category);
-    } catch (e) {
-        console.error(`Network error fetching ${category} records:`, e);
-        showStatusBanner("Could not connect to the server. Check that the app is running.", "error");
-        renderCategoryError(category);
-    } finally {
-        state.ui.loading = false;
     }
 }
 
