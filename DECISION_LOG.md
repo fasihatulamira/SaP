@@ -15,7 +15,17 @@ Install official hosted Supabase MCP (`https://mcp.supabase.com/mcp`) for this r
 Copy local MySQL rows with `copy_local_to_supabase.py` after setting `DATABASE_URL` from the Supabase dashboard.
 
 ### Copy result (2026-08-20)
-GIS catalog copied into project `gis-info` (`adtftwtentpkmivszpjf`): topography 23, dted 7, landused 13, sjung 2, audit_log 33. `audit_document` blobs were not copied (PDFs). Render service creation still needs a logged-in Render dashboard + `DATABASE_URL`.
+GIS catalog copied into project `gis-info` (`adtftwtentpkmivszpjf`): topography 23, dted 7, landused 13, sjung 2, audit_log 33. Render: **https://gis-info-supabase.onrender.com**
+
+### QA fix (2026-08-20) — empty tables on Supabase Render
+- **Root cause:** `ensure_schema_ready()` ran `CREATE TABLE` as `gis_info_render`; role lacked `CREATE` on schema `public` → `InsufficientPrivilege` (`app.py:156`, `database.py:ensure_schema_ready`).
+- **Fix:** Granted schema/table privileges on Supabase; `database.py` skips DDL when `topography` already exists. Commit `5d5cf84` on `supabase`.
+- **Verify:** `/api/records/topography` → `total: 23` on live URL.
+
+### QA fix (2026-08-20) — Generate PDF blank
+- **Root cause:** html2canvas captures blank when ancestors use `backdrop-filter` (glass-card). Print/Word unaffected (different paths). Live blob ~3KB empty vs ~112KB with content after fix.
+- **Fix:** Disable backdrop-filter during capture (`body.pdf-exporting`), `onclone` cleanup, full height capture; download PDF before audit archive. `static/js/app.js`, `static/css/style.css`.
+- **Verify:** After Render deploy of this commit, Generate PDF shows KEMBARAN I + selected rows.
 
 ---
 

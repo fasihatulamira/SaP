@@ -597,19 +597,55 @@ function setPdfCaptureMode(enabled) {
         // by the narrow preview column / overflow-x:hidden on body.
         frame.style.width = "794px";
         frame.style.maxWidth = "794px";
+        // html2canvas renders a blank image when ancestors use backdrop-filter.
+        let parent = frame.parentElement;
+        while (parent) {
+            parent.dataset.pdfExportBackdrop = parent.style.backdropFilter || "";
+            parent.style.backdropFilter = "none";
+            parent.style.webkitBackdropFilter = "none";
+            parent = parent.parentElement;
+        }
     } else {
         frame.style.width = "";
         frame.style.maxWidth = "";
+        document.querySelectorAll("[data-pdf-export-backdrop]").forEach((node) => {
+            node.style.backdropFilter = node.dataset.pdfExportBackdrop || "";
+            node.style.webkitBackdropFilter = "";
+            delete node.dataset.pdfExportBackdrop;
+        });
     }
+}
+
+function preparePdfCloneDocument(clonedDoc) {
+    clonedDoc.body.classList.add("pdf-exporting");
+    const clonedFrame = clonedDoc.getElementById("printable-document");
+    if (clonedFrame) {
+        clonedFrame.classList.add("pdf-capture");
+        clonedFrame.style.width = "794px";
+        clonedFrame.style.maxWidth = "794px";
+        clonedFrame.style.overflow = "visible";
+    }
+    const clonedContent = clonedDoc.getElementById("doc-content");
+    if (clonedContent) {
+        clonedContent.style.overflow = "visible";
+    }
+    clonedDoc.querySelectorAll(".glass-card, .preview-panel, header, main, body").forEach((node) => {
+        node.style.backdropFilter = "none";
+        node.style.webkitBackdropFilter = "none";
+        node.style.filter = "none";
+    });
 }
 
 async function buildPreviewPdfBlob(filename) {
     const element = document.getElementById("printable-document");
     setPdfCaptureMode(true);
     await waitForReflow();
+    await new Promise((resolve) => setTimeout(resolve, 150));
 
     const captureWidth = Math.ceil(Math.max(element.scrollWidth, element.offsetWidth, 794));
-    const captureHeight = Math.ceil(Math.max(element.scrollHeight, element.offsetHeight));
+    const captureHeight = Math.ceil(
+        Math.max(element.scrollHeight, element.offsetHeight, DOM.docContent?.scrollHeight || 0, 800)
+    );
 
     const opt = {
         margin: [12, 12, 12, 12],
@@ -624,9 +660,11 @@ async function buildPreviewPdfBlob(filename) {
             x: 0,
             y: 0,
             width: captureWidth,
+            height: captureHeight,
             windowWidth: captureWidth,
             windowHeight: captureHeight,
-            backgroundColor: "#ffffff"
+            backgroundColor: "#ffffff",
+            onclone: preparePdfCloneDocument
         },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
         pagebreak: {
@@ -1144,8 +1182,8 @@ async function generatePDF() {
 
     try {
         const { pdf, blob } = await buildPreviewPdfBlob(filename);
-        await archiveAuditDocument("export_pdf", blob, filename);
         pdf.save(filename);
+        await archiveAuditDocument("export_pdf", blob, filename);
     } catch (err) {
         console.error("PDF generation failed:", err);
         showStatusBanner("PDF generation failed.", "error");
