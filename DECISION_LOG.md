@@ -1,5 +1,51 @@
 # Decision Log
 
+## 2026-08-20 — Supabase branch (PostgreSQL, separate Render URL)
+
+### Decision
+Branch `supabase` swaps Aiven MySQL for Supabase PostgreSQL while keeping the same six-table `listmap` structure (quoted camelCase columns preserved).
+
+### Why
+User wants to evaluate Supabase without disturbing production on `main` + Aiven (`sap-listmap.onrender.com`).
+
+### Design
+1. `database.py` → `psycopg2` + `DATABASE_URL` (Supabase URI).
+2. `schema_postgres.sql` mirrors `schema.sql` (BYTEA for audit blobs, JSONB for details, SERIAL for auto IDs).
+3. `copy_local_to_supabase.py` copies from local MySQL `.env` to Supabase.
+4. `render.yaml` on this branch: service `gis-info-supabase`, branch `supabase`, env `DATABASE_URL` only.
+5. Production MySQL path stays on `main`.
+
+### Deploy target
+- Branch: `supabase`
+- Render service: `gis-info-supabase`
+- URL: `https://gis-info-supabase.onrender.com`
+
+---
+
+## 2026-08-20 — AI Council QA audit of recent changes
+
+### QA result: **PASS with notes** (automated), **PARTIAL pending** (live Render/PDF eye-check)
+
+| Area | Result | Evidence |
+|------|--------|----------|
+| Automated tests | **PASS** | `pytest` → 33 passed |
+| Compile | **PASS** | `app.py`, `database.py`, `export_*.py` |
+| AI Council rule | **PASS** | `.cursor/rules/ai-council.mdc` alwaysApply |
+| Word export + naming | **PASS** | `/api/export/docx`, `export_filenames.py`, audit action |
+| Doc layout (code) | **PASS** | Header `templates/index.html:351-353`; A/B/C in `app.js`; gold `#FFD966` in CSS |
+| PDF clip fix (code) | **PASS** | `setPdfCaptureMode` 794px + `body.pdf-exporting` |
+| DB hardening (code) | **PASS** | Aiven auto-SSL, no pool by default, `/api/health`, lazy schema |
+| Live Render DB | **PASS** | `/api/health` → `"db":"ok"`, Aiven host + SSL (`app.py:156` lazy schema) |
+| Live login page | **PASS** | Playwright → `Login — GIS Info` at `/login` |
+| Live PDF right edge | **PENDING user** | Regenerate after deploy of `710983e` |
+
+### Notes
+- Password was shared in chat earlier — rotate Aiven password when stable.
+- **Live follow-up (2026-08-20):** Playwright MCP (`user-playwright`) re-verified health + login page; uncommitted audit artifacts: `DECISION_LOG.md`, `.cursor/mcp.json`, `package.json`, `.gitignore` (`node_modules/`).
+- Playwright MCP also at project `.cursor/mcp.json`; enable in Cursor **Settings → MCP** if not already active.
+
+---
+
 ## 2026-08-20 — AI Council Cursor rule
 
 ### Decision

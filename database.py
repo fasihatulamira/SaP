@@ -2,11 +2,12 @@ import json
 import os
 import time
 from contextlib import contextmanager
-import mysql.connector
-from mysql.connector import Error as MySQLError
+
+import psycopg2
+from psycopg2 import Error as PGError
+from psycopg2.extras import RealDictCursor
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
 DEFAULT_LIMIT = 10
@@ -20,93 +21,101 @@ def _env_truthy(name, default=""):
     return os.getenv(name, default).lower() in ("true", "1", "t", "y", "yes")
 
 
+def _normalize_database_url(url):
+    if not url:
+        return url
+    url = url.strip()
+    if url.startswith("postgres://"):
+        url = "postgresql://" + url[len("postgres://") :]
+    return url
+
+
 def _build_db_config():
+    """Build psycopg2 connection kwargs from DATABASE_URL or DB_* env vars."""
+    database_url = _normalize_database_url(
+        os.getenv("DATABASE_URL") or os.getenv("SUPABASE_DB_URL")
+    )
+    if database_url:
+        return {
+            "dsn": database_url,
+            "host": None,
+            "port": None,
+            "database": None,
+            "user_set": True,
+            "password_set": True,
+            "ssl": "sslmode=" in database_url.lower() or "supabase" in database_url.lower(),
+        }
+
     host = (os.getenv("DB_HOST") or "localhost").strip()
-    cfg = {
+    auto_ssl = "supabase.co" in host.lower() or _env_truthy("DB_SSL")
+    return {
+        "dsn": None,
         "host": host,
-        "port": int(os.getenv("DB_PORT", 3306)),
+        "port": int(os.getenv("DB_PORT", 5432)),
         "user": os.getenv("DB_USER"),
         "password": os.getenv("DB_PASSWORD"),
-        "database": os.getenv("DB_NAME"),
-        "connection_timeout": int(os.getenv("DB_CONNECT_TIMEOUT", "60")),
-        "autocommit": False,
-        "use_pure": True,
+        "database": os.getenv("DB_NAME", "postgres"),
+        "connect_timeout": int(os.getenv("DB_CONNECT_TIMEOUT", "60")),
+        "sslmode": "require" if auto_ssl else "prefer",
+        "user_set": bool(os.getenv("DB_USER")),
+        "password_set": os.getenv("DB_PASSWORD") is not None and os.getenv("DB_PASSWORD") != "",
+        "ssl": auto_ssl,
     }
-
-    # Aiven / cloud MySQL require TLS even if DB_SSL was forgotten on Render
-    auto_ssl = "aivencloud.com" in host.lower() or "amazonaws.com" in host.lower()
-    if _env_truthy("DB_SSL") or auto_ssl:
-        cfg["ssl_disabled"] = False
-
-    return cfg
 
 
 db_config = _build_db_config()
-
-# Free-tier managed MySQL (Aiven) + connection pools often yield stale sockets.
-# Default to short-lived direct connections unless DB_USE_POOL=true.
-db_pool = None
-if _env_truthy("DB_USE_POOL", "false"):
-    try:
-        from mysql.connector import pooling
-
-        pool_cfg = {k: v for k, v in db_config.items() if k != "use_pure"}
-        db_pool = pooling.MySQLConnectionPool(
-            pool_name="listmap_pool",
-            pool_size=int(os.getenv("DB_POOL_SIZE", "3")),
-            pool_reset_session=True,
-            **pool_cfg,
-        )
-    except Exception as e:
-        print("Error initializing connection pool, using direct connections:", e)
-        db_pool = None
 
 
 def db_status():
     """Safe connection diagnostics for health checks (no secrets)."""
     return {
-        "host": db_config.get("host"),
+        "backend": "postgresql",
+        "host": db_config.get("host") or "(DATABASE_URL)",
         "port": db_config.get("port"),
-        "database": db_config.get("database"),
-        "user_set": bool(db_config.get("user")),
-        "password_set": db_config.get("password") is not None and db_config.get("password") != "",
-        "ssl": db_config.get("ssl_disabled") is False,
-        "pool": bool(db_pool),
+        "database": db_config.get("database") or "(from DATABASE_URL)",
+        "user_set": db_config.get("user_set"),
+        "password_set": db_config.get("password_set"),
+        "ssl": db_config.get("ssl"),
         "schema_ready": _schema_ready,
     }
 
 
 def get_connection():
-    """Return a live MySQL connection, retrying for cold managed DBs."""
+    """Return a live PostgreSQL connection, retrying for cold managed DBs."""
     last_error = None
     for attempt in range(1, _CONNECT_RETRIES + 1):
         try:
-            if db_pool:
-                conn = db_pool.get_connection()
+            if db_config.get("dsn"):
+                conn = psycopg2.connect(db_config["dsn"])
             else:
-                conn = mysql.connector.connect(**db_config)
-            try:
-                conn.ping(reconnect=True, attempts=3, delay=1)
-            except Exception:
-                try:
-                    conn.close()
-                except Exception:
-                    pass
-                raise
+                conn = psycopg2.connect(
+                    host=db_config["host"],
+                    port=db_config["port"],
+                    user=db_config["user"],
+                    password=db_config["password"],
+                    dbname=db_config["database"],
+                    connect_timeout=db_config["connect_timeout"],
+                    sslmode=db_config["sslmode"],
+                )
+            conn.autocommit = False
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT 1")
+                cursor.fetchone()
             return conn
         except Exception as exc:
             last_error = exc
             print(f"DB connect attempt {attempt}/{_CONNECT_RETRIES} failed: {exc}")
             if attempt < _CONNECT_RETRIES:
                 time.sleep(_CONNECT_RETRY_SLEEP_SEC * attempt)
-    raise MySQLError(f"Unable to connect to MySQL after {_CONNECT_RETRIES} attempts: {last_error}")
+    raise PGError(f"Unable to connect to PostgreSQL after {_CONNECT_RETRIES} attempts: {last_error}")
 
 
 @contextmanager
 def get_db_cursor(dictionary=False, commit=False):
     """Yield a cursor and always close cursor + connection."""
     conn = get_connection()
-    cursor = conn.cursor(dictionary=dictionary)
+    cursor_factory = RealDictCursor if dictionary else None
+    cursor = conn.cursor(cursor_factory=cursor_factory)
     try:
         yield cursor
         if commit:
@@ -132,6 +141,7 @@ def ensure_schema_ready():
     ensure_core_tables()
     _schema_ready = True
 
+
 def _clamp_pagination(page, limit):
     try:
         page = max(1, int(page))
@@ -143,6 +153,7 @@ def _clamp_pagination(page, limit):
         limit = DEFAULT_LIMIT
     return page, limit
 
+
 def _paginated_result(items, total, page, limit):
     return {
         "items": items,
@@ -152,19 +163,15 @@ def _paginated_result(items, total, page, limit):
         "total_pages": max(1, (total + limit - 1) // limit) if total else 1,
     }
 
+
 def get_topography_data(search_query=None, release_year=None, page=1, limit=DEFAULT_LIMIT):
-    """
-    Fetches paginated records from topography table.
-    Filters by search_query (sheetNum or sheetName) and release_year if provided.
-    """
     page, limit = _clamp_pagination(page, limit)
     where = ""
     params = []
 
     if search_query:
-        where += " AND (sheetNum LIKE %s OR sheetName LIKE %s)"
-        params.append(f"%{search_query}%")
-        params.append(f"%{search_query}%")
+        where += ' AND ("sheetNum" ILIKE %s OR "sheetName" ILIKE %s)'
+        params.extend([f"%{search_query}%", f"%{search_query}%"])
 
     if release_year:
         where += " AND release_year = %s"
@@ -176,25 +183,22 @@ def get_topography_data(search_query=None, release_year=None, page=1, limit=DEFA
 
         offset = (page - 1) * limit
         cursor.execute(
-            f"SELECT sheetNum, sheetName, sheetScale, release_year "
-            f"FROM topography WHERE 1=1{where} ORDER BY sheetNum ASC LIMIT %s OFFSET %s",
+            f'SELECT "sheetNum", "sheetName", "sheetScale", release_year '
+            f"FROM topography WHERE 1=1{where} ORDER BY \"sheetNum\" ASC LIMIT %s OFFSET %s",
             params + [limit, offset],
         )
         rows = cursor.fetchall()
 
     return _paginated_result(rows, total, page, limit)
 
+
 def get_dted_data(search_query=None, level=None, page=1, limit=DEFAULT_LIMIT):
-    """
-    Fetches paginated records from dted table.
-    Filters by search_query (id_name) and level if provided.
-    """
     page, limit = _clamp_pagination(page, limit)
     where = ""
     params = []
 
     if search_query:
-        where += " AND id_name LIKE %s"
+        where += " AND id_name ILIKE %s"
         params.append(f"%{search_query}%")
 
     if level is not None:
@@ -215,17 +219,14 @@ def get_dted_data(search_query=None, level=None, page=1, limit=DEFAULT_LIMIT):
 
     return _paginated_result(rows, total, page, limit)
 
+
 def get_landused_data(search_query=None, page=1, limit=DEFAULT_LIMIT):
-    """
-    Fetches paginated records from landused table.
-    Filters by search_query (category) if provided.
-    """
     page, limit = _clamp_pagination(page, limit)
     where = ""
     params = []
 
     if search_query:
-        where += " AND category LIKE %s"
+        where += " AND category ILIKE %s"
         params.append(f"%{search_query}%")
 
     with get_db_cursor(dictionary=True) as cursor:
@@ -242,19 +243,15 @@ def get_landused_data(search_query=None, page=1, limit=DEFAULT_LIMIT):
 
     return _paginated_result(rows, total, page, limit)
 
+
 def get_sjungu_data(search_query=None, page=1, limit=DEFAULT_LIMIT):
-    """
-    Fetches paginated records from sjung table.
-    Filters by search_query (sheetNum or sheetName) if provided.
-    """
     page, limit = _clamp_pagination(page, limit)
     where = ""
     params = []
 
     if search_query:
-        where += " AND (sheetNum LIKE %s OR sheetName LIKE %s)"
-        params.append(f"%{search_query}%")
-        params.append(f"%{search_query}%")
+        where += ' AND ("sheetNum" ILIKE %s OR "sheetName" ILIKE %s)'
+        params.extend([f"%{search_query}%", f"%{search_query}%"])
 
     with get_db_cursor(dictionary=True) as cursor:
         cursor.execute(f"SELECT COUNT(*) AS cnt FROM sjung WHERE 1=1{where}", params)
@@ -262,18 +259,16 @@ def get_sjungu_data(search_query=None, page=1, limit=DEFAULT_LIMIT):
 
         offset = (page - 1) * limit
         cursor.execute(
-            f"SELECT sheetNum, sheetName, sheetScale FROM sjung WHERE 1=1{where} "
-            f"ORDER BY sheetNum ASC LIMIT %s OFFSET %s",
+            f'SELECT "sheetNum", "sheetName", "sheetScale" FROM sjung WHERE 1=1{where} '
+            f'ORDER BY "sheetNum" ASC LIMIT %s OFFSET %s',
             params + [limit, offset],
         )
         rows = cursor.fetchall()
 
     return _paginated_result(rows, total, page, limit)
 
+
 def get_filter_options():
-    """
-    Returns unique values from the database to populate frontend dropdown filters dynamically.
-    """
     with get_db_cursor() as cursor:
         cursor.execute("SELECT DISTINCT release_year FROM topography ORDER BY release_year DESC")
         years = [row[0] for row in cursor.fetchall() if row[0] is not None]
@@ -283,7 +278,7 @@ def get_filter_options():
 
     return {
         "release_years": years,
-        "dted_levels": levels
+        "dted_levels": levels,
     }
 
 
@@ -307,7 +302,8 @@ def create_topography_record(sheet_num, sheet_name, sheet_scale, release_year):
     release_year = _require_int(release_year, "release_year")
     with get_db_cursor(commit=True) as cursor:
         cursor.execute(
-            "INSERT INTO topography (sheetNum, sheetName, sheetScale, release_year) VALUES (%s, %s, %s, %s)",
+            'INSERT INTO topography ("sheetNum", "sheetName", "sheetScale", release_year) '
+            "VALUES (%s, %s, %s, %s)",
             (sheet_num, sheet_name, sheet_scale, release_year),
         )
 
@@ -319,7 +315,7 @@ def update_topography_record(sheet_num, sheet_name, sheet_scale, release_year):
     release_year = _require_int(release_year, "release_year")
     with get_db_cursor(commit=True) as cursor:
         cursor.execute(
-            "UPDATE topography SET sheetName=%s, sheetScale=%s, release_year=%s WHERE sheetNum=%s",
+            'UPDATE topography SET "sheetName"=%s, "sheetScale"=%s, release_year=%s WHERE "sheetNum"=%s',
             (sheet_name, sheet_scale, release_year, sheet_num),
         )
         return cursor.rowcount > 0
@@ -328,7 +324,7 @@ def update_topography_record(sheet_num, sheet_name, sheet_scale, release_year):
 def delete_topography_record(sheet_num):
     sheet_num = _require_non_empty_str(sheet_num, "sheetNum")
     with get_db_cursor(commit=True) as cursor:
-        cursor.execute("DELETE FROM topography WHERE sheetNum=%s", (sheet_num,))
+        cursor.execute('DELETE FROM topography WHERE "sheetNum"=%s', (sheet_num,))
         return cursor.rowcount > 0
 
 
@@ -369,12 +365,16 @@ def create_landused_record(category, landused_id=None):
                 "INSERT INTO landused (landused_id, category) VALUES (%s, %s)",
                 (landused_id, category),
             )
+            cursor.execute(
+                "SELECT setval(pg_get_serial_sequence('landused', 'landused_id'), "
+                "GREATEST((SELECT MAX(landused_id) FROM landused), 1))"
+            )
             return landused_id
         cursor.execute(
-            "INSERT INTO landused (category) VALUES (%s)",
+            "INSERT INTO landused (category) VALUES (%s) RETURNING landused_id",
             (category,),
         )
-        return cursor.lastrowid
+        return cursor.fetchone()[0]
 
 
 def update_landused_record(landused_id, category):
@@ -401,7 +401,7 @@ def create_sjungu_record(sheet_num, sheet_name, sheet_scale):
     sheet_scale = _require_non_empty_str(sheet_scale, "sheetScale")
     with get_db_cursor(commit=True) as cursor:
         cursor.execute(
-            "INSERT INTO sjung (sheetNum, sheetName, sheetScale) VALUES (%s, %s, %s)",
+            'INSERT INTO sjung ("sheetNum", "sheetName", "sheetScale") VALUES (%s, %s, %s)',
             (sheet_num, sheet_name, sheet_scale),
         )
 
@@ -412,7 +412,7 @@ def update_sjungu_record(sheet_num, sheet_name, sheet_scale):
     sheet_scale = _require_non_empty_str(sheet_scale, "sheetScale")
     with get_db_cursor(commit=True) as cursor:
         cursor.execute(
-            "UPDATE sjung SET sheetName=%s, sheetScale=%s WHERE sheetNum=%s",
+            'UPDATE sjung SET "sheetName"=%s, "sheetScale"=%s WHERE "sheetNum"=%s',
             (sheet_name, sheet_scale, sheet_num),
         )
         return cursor.rowcount > 0
@@ -421,49 +421,48 @@ def update_sjungu_record(sheet_num, sheet_name, sheet_scale):
 def delete_sjungu_record(sheet_num):
     sheet_num = _require_non_empty_str(sheet_num, "sheetNum")
     with get_db_cursor(commit=True) as cursor:
-        cursor.execute("DELETE FROM sjung WHERE sheetNum=%s", (sheet_num,))
+        cursor.execute('DELETE FROM sjung WHERE "sheetNum"=%s', (sheet_num,))
         return cursor.rowcount > 0
 
 
 def ensure_core_tables():
-    """Create all LISTMAP tables when missing (safe for managed MySQL)."""
+    """Create all LISTMAP tables when missing (safe for Supabase / managed Postgres)."""
     statements = (
         """
         CREATE TABLE IF NOT EXISTS topography (
-          sheetNum     VARCHAR(45)  NOT NULL,
-          sheetName    VARCHAR(255) NOT NULL,
-          sheetScale   VARCHAR(45)  NOT NULL,
-          release_year INT          NOT NULL,
-          PRIMARY KEY (sheetNum),
-          INDEX idx_topography_release_year (release_year),
-          INDEX idx_topography_sheet_name (sheetName)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+          "sheetNum"     VARCHAR(45)  NOT NULL,
+          "sheetName"    VARCHAR(255) NOT NULL,
+          "sheetScale"   VARCHAR(45)  NOT NULL,
+          release_year   INT          NOT NULL,
+          PRIMARY KEY ("sheetNum")
+        )
         """,
+        'CREATE INDEX IF NOT EXISTS idx_topography_release_year ON topography (release_year)',
+        'CREATE INDEX IF NOT EXISTS idx_topography_sheet_name ON topography ("sheetName")',
         """
         CREATE TABLE IF NOT EXISTS dted (
           id_name VARCHAR(255) NOT NULL,
           level   INT          NOT NULL,
-          PRIMARY KEY (id_name),
-          INDEX idx_dted_level (level)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+          PRIMARY KEY (id_name)
+        )
         """,
+        "CREATE INDEX IF NOT EXISTS idx_dted_level ON dted (level)",
         """
         CREATE TABLE IF NOT EXISTS landused (
-          landused_id INT          NOT NULL AUTO_INCREMENT,
-          category    VARCHAR(255) NOT NULL,
-          PRIMARY KEY (landused_id),
-          INDEX idx_landused_category (category)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+          landused_id SERIAL PRIMARY KEY,
+          category    VARCHAR(255) NOT NULL
+        )
         """,
+        "CREATE INDEX IF NOT EXISTS idx_landused_category ON landused (category)",
         """
         CREATE TABLE IF NOT EXISTS sjung (
-          sheetNum   VARCHAR(255) NOT NULL,
-          sheetName  VARCHAR(45)  NOT NULL,
-          sheetScale VARCHAR(45)  NOT NULL,
-          PRIMARY KEY (sheetNum),
-          INDEX idx_sjung_sheet_name (sheetName)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+          "sheetNum"   VARCHAR(255) NOT NULL,
+          "sheetName"  VARCHAR(45)  NOT NULL,
+          "sheetScale" VARCHAR(45)  NOT NULL,
+          PRIMARY KEY ("sheetNum")
+        )
         """,
+        'CREATE INDEX IF NOT EXISTS idx_sjung_sheet_name ON sjung ("sheetName")',
     )
     with get_db_cursor(commit=True) as cursor:
         for sql in statements:
@@ -473,67 +472,68 @@ def ensure_core_tables():
 
 
 def ensure_audit_log_table():
-    """Create audit_log table when missing (safe for existing databases)."""
     with get_db_cursor(commit=True) as cursor:
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS audit_log (
-              id          INT          NOT NULL AUTO_INCREMENT,
+              id          SERIAL PRIMARY KEY,
               username    VARCHAR(100) NOT NULL,
               role        VARCHAR(20)  NOT NULL,
               action      VARCHAR(50)  NOT NULL,
               report_ref  VARCHAR(50)  NULL,
               item_count  INT          NOT NULL DEFAULT 0,
-              details     JSON         NULL,
-              created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-              PRIMARY KEY (id),
-              INDEX idx_audit_created (created_at DESC),
-              INDEX idx_audit_username (username),
-              INDEX idx_audit_action (action)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+              details     JSONB        NULL,
+              created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
             """
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log (created_at DESC)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_audit_username ON audit_log (username)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log (action)"
         )
 
 
 def ensure_audit_document_table():
-    """Create audit_document table when missing (safe for existing databases)."""
     with get_db_cursor(commit=True) as cursor:
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS audit_document (
-              id           INT          NOT NULL AUTO_INCREMENT,
+              id           SERIAL PRIMARY KEY,
               audit_id     INT          NOT NULL,
               filename     VARCHAR(255) NOT NULL,
               mime_type    VARCHAR(100) NOT NULL,
               file_size    INT          NOT NULL,
-              file_data    LONGBLOB     NOT NULL,
+              file_data    BYTEA        NOT NULL,
               created_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-              PRIMARY KEY (id),
-              UNIQUE KEY uq_audit_document_audit_id (audit_id),
+              CONSTRAINT uq_audit_document_audit_id UNIQUE (audit_id),
               CONSTRAINT fk_audit_document_audit
                 FOREIGN KEY (audit_id) REFERENCES audit_log(id)
                 ON DELETE CASCADE
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+            )
             """
         )
 
 
 def insert_audit_log(username, role, action, report_ref=None, item_count=0, details=None):
-    """Insert a row into the audit_log table and return its id."""
     details_json = json.dumps(details) if details is not None else None
     with get_db_cursor(commit=True) as cursor:
         cursor.execute(
             """
             INSERT INTO audit_log (username, role, action, report_ref, item_count, details)
             VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING id
             """,
             (username, role, action, report_ref, item_count, details_json),
         )
-        return cursor.lastrowid
+        return cursor.fetchone()[0]
 
 
 def insert_audit_document(audit_id, filename, mime_type, file_data):
-    """Store an archived document linked to an audit_log row."""
     audit_id = int(audit_id)
     filename = _require_non_empty_str(filename, "filename")
     mime_type = _require_non_empty_str(mime_type, "mime_type")
@@ -545,14 +545,14 @@ def insert_audit_document(audit_id, filename, mime_type, file_data):
             """
             INSERT INTO audit_document (audit_id, filename, mime_type, file_size, file_data)
             VALUES (%s, %s, %s, %s, %s)
+            RETURNING id
             """,
-            (audit_id, filename, mime_type, file_size, file_data),
+            (audit_id, filename, mime_type, file_size, psycopg2.Binary(file_data)),
         )
-        return cursor.lastrowid
+        return cursor.fetchone()[0]
 
 
 def get_audit_document(audit_id):
-    """Return archived document metadata + bytes for an audit entry, or None."""
     audit_id = int(audit_id)
     with get_db_cursor(dictionary=True) as cursor:
         cursor.execute(
@@ -566,13 +566,14 @@ def get_audit_document(audit_id):
         row = cursor.fetchone()
     if not row:
         return None
+    if isinstance(row.get("file_data"), memoryview):
+        row["file_data"] = bytes(row["file_data"])
     if row.get("created_at") is not None:
         row["created_at"] = row["created_at"].isoformat(sep=" ", timespec="seconds")
     return row
 
 
 def get_audit_logs(limit=50):
-    """Return recent audit log entries (newest first), excluding sign-in/sign-out."""
     limit = min(max(1, int(limit)), 200)
     with get_db_cursor(dictionary=True) as cursor:
         cursor.execute(

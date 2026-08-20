@@ -1,4 +1,4 @@
-"""Apply core tables to the configured MySQL database (one-time / upgrade)."""
+"""Apply core tables to the configured PostgreSQL database (one-time / upgrade)."""
 import logging
 import sys
 
@@ -17,8 +17,8 @@ def main():
     except Exception as exc:
         print(f"Schema apply failed: {exc}", file=sys.stderr)
         print(
-            "Check DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME "
-            "(set DB_SSL=true for Aiven / other managed MySQL).",
+            "Check DATABASE_URL or DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME "
+            "(set DB_SSL=true or use ?sslmode=require for Supabase).",
             file=sys.stderr,
         )
         sys.exit(1)

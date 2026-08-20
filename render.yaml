@@ -1,15 +1,17 @@
-# Render Blueprint — SaP LISTMAP web service
-# Dashboard: New → Blueprint → connect this repo
-# You still need a MySQL private service (see DEPLOYMENT.md).
+# Render Blueprint — GIS Info (Supabase / PostgreSQL branch)
+# Deploy from branch `supabase` so production (main + Aiven MySQL) is unchanged.
+# Dashboard: New → Blueprint → connect repo → select branch `supabase`
+# Expected URL: https://gis-info-supabase.onrender.com
 
 services:
   - type: web
-    name: gis-info
+    name: gis-info-supabase
     runtime: python
     plan: free
+    branch: supabase
     buildCommand: pip install -r requirements.txt
     startCommand: python run_production.py
-    healthCheckPath: /login
+    healthCheckPath: /api/health
     envVars:
       - key: APP_ENV
         value: production
@@ -35,15 +37,7 @@ services:
         value: user
       - key: AUTH_USER_PASSWORD
         sync: false
-      - key: DB_HOST
-        sync: false
-      - key: DB_PORT
-        value: "3306"
-      - key: DB_USER
-        sync: false
-      - key: DB_PASSWORD
-        sync: false
-      - key: DB_NAME
-        value: listmap
-      - key: DB_SSL
+      # Supabase → Project Settings → Database → Connection string (URI)
+      # Use "Session pooler" or "Transaction pooler" URI; append ?sslmode=require if needed
+      - key: DATABASE_URL
         sync: false

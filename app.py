@@ -5,7 +5,7 @@ from io import BytesIO
 from flask import Flask, jsonify, render_template, request, send_file
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from mysql.connector import errors as mysql_errors
+from psycopg2 import IntegrityError
 
 import database
 from database import (
@@ -270,7 +270,7 @@ def create_category_record(category):
         return jsonify({"ok": True, "record": record}), 201
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
-    except mysql_errors.IntegrityError:
+    except IntegrityError:
         return jsonify({"error": "A record with that identifier already exists."}), 409
     except Exception:
         logger.exception("Failed to create record for category: %s", category)

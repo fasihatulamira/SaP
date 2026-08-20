@@ -1,4 +1,12 @@
 import pytest
+from unittest.mock import patch
+
+
+@pytest.fixture(autouse=True)
+def _skip_db_schema_setup():
+    """Tests mock DB calls; avoid real PostgreSQL/MySQL connect on ensure_schema_ready."""
+    with patch("database.ensure_schema_ready"):
+        yield
 
 
 @pytest.fixture
