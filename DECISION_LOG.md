@@ -1,5 +1,15 @@
 # Decision Log
 
+## 2026-08-21 — Category rename + KEMBARAN column widths + subtitle
+
+### Decision
+UI tabs: Topography→**Topo Raster**, Land Used→**Landused**, Sjung→**Topo**. Default subtitle → **EKSESAIS**. Document/PDF/Word table columns match official KEMBARAN I sample proportions.
+
+### Why
+User alignment with company naming and official kembaran layout (SHEET NAME wider; NUM. narrow).
+
+---
+
 ## 2026-08-21 — Print shadow + Generate PDF TOTAL gap
 
 ### Decision

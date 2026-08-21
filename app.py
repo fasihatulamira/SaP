@@ -494,7 +494,7 @@ def export_xlsx():
         return jsonify({"error": "No records selected for export."}), 400
 
     report_ref = data.get("report_ref")
-    report_title = data.get("report_title", "EKSESAIS LATIHAN TAHUN 2026")
+    report_title = data.get("report_title", "EKSESAIS")
 
     try:
         buffer = build_export_workbook(report_title, report_ref, selections)
@@ -538,7 +538,7 @@ def export_docx():
         return jsonify({"error": "No records selected for export."}), 400
 
     report_ref = data.get("report_ref")
-    report_title = data.get("report_title", "EKSESAIS LATIHAN TAHUN 2026")
+    report_title = data.get("report_title", "EKSESAIS")
 
     try:
         buffer = build_export_docx(report_title, report_ref, selections)

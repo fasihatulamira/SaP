@@ -5,13 +5,17 @@ from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
-from docx.shared import Cm, Pt, RGBColor
+from docx.shared import Cm, Pt, RGBColor, Twips
 
 
 BLACK = RGBColor(0x00, 0x00, 0x00)
 HEADER_FILL = "FFD966"  # Gold, Accent 4, Lighter 40%
 FIXED_TITLE = "SENARAI LEMBARAN DAN JENIS PETA"
-DEFAULT_SUBTITLE = "EKSESAIS LATIHAN TAHUN 2026"
+DEFAULT_SUBTITLE = "EKSESAIS"
+
+# Column widths from official KEMBARAN I - GIS INFO.docx (tblGrid twips)
+TOPO_COL_TWIPS = (882, 1778, 3616, 1559, 1545)
+LAND_DTED_COL_TWIPS = (850, 6517, 1700)
 
 
 def _set_run_font(run, *, bold=False, italic=False, underline=False, size=12):
@@ -67,6 +71,39 @@ def _set_cell_text(cell, text, *, bold=False, center=True, header=False):
         _set_cell_shading(cell)
 
 
+def _set_table_column_widths(table, widths_twips):
+    """Apply preferred column widths to match the official kembaran layout."""
+    tbl = table._tbl
+    tbl_pr = tbl.tblPr
+    if tbl_pr is None:
+        tbl_pr = OxmlElement("w:tblPr")
+        tbl.insert(0, tbl_pr)
+
+    tbl_w = tbl_pr.find(qn("w:tblW"))
+    if tbl_w is None:
+        tbl_w = OxmlElement("w:tblW")
+        tbl_pr.append(tbl_w)
+    tbl_w.set(qn("w:type"), "dxa")
+    tbl_w.set(qn("w:w"), str(sum(widths_twips)))
+
+    grid = tbl.tblGrid
+    if grid is None:
+        grid = OxmlElement("w:tblGrid")
+        tbl.insert(1, grid)
+    for child in list(grid):
+        grid.remove(child)
+    for width in widths_twips:
+        grid_col = OxmlElement("w:gridCol")
+        grid_col.set(qn("w:w"), str(width))
+        grid.append(grid_col)
+
+    for row in table.rows:
+        for idx, cell in enumerate(row.cells):
+            if idx >= len(widths_twips):
+                break
+            cell.width = Twips(widths_twips[idx])
+
+
 def _fill_table(table, headers, rows, total_label):
     hdr = table.rows[0].cells
     for i, header in enumerate(headers):
@@ -83,10 +120,11 @@ def _fill_table(table, headers, rows, total_label):
     _set_cell_text(total_row[-1], total_label, bold=True)
 
 
-def _add_data_table(doc, headers, rows, total_label):
+def _add_data_table(doc, headers, rows, total_label, col_widths_twips):
     table = doc.add_table(rows=len(rows) + 2, cols=len(headers))
     table.style = "Table Grid"
     _fill_table(table, headers, rows, total_label)
+    _set_table_column_widths(table, col_widths_twips)
     return table
 
 
@@ -158,6 +196,7 @@ def build_export_docx(report_title, report_ref, selections):
             ["NUM.", "SHEET NUM.", "SHEET NAME", "SHEET SCALE", "RELEASE YEAR"],
             rows,
             total_label,
+            TOPO_COL_TWIPS,
         )
 
     land = selections.get("landused") or []
@@ -172,6 +211,7 @@ def build_export_docx(report_title, report_ref, selections):
             ["NUM.", "CATEGORY", "LANDUSED ID"],
             rows,
             str(len(land)),
+            LAND_DTED_COL_TWIPS,
         )
 
     dted = selections.get("dted") or []
@@ -186,6 +226,7 @@ def build_export_docx(report_title, report_ref, selections):
             ["NUM.", "IDENTIFICATION NAME", "LEVEL"],
             rows,
             str(len(dted)),
+            LAND_DTED_COL_TWIPS,
         )
 
     # report_ref kept out of the Word body to match the official kembaran

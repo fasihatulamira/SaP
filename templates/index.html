@@ -29,7 +29,7 @@
             <!-- Editable red subtitle line on the Word-format document -->
             <div class="search-input-wrapper" style="min-width: 480px; display: flex; align-items: center; gap: 0.5rem;">
                 <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; white-space: nowrap;">Document subtitle:</span>
-                <input type="text" id="doc-title-input" class="search-input" value="EKSESAIS LATIHAN TAHUN 2026" style="padding: 0.5rem 0.75rem; font-size: 0.85rem; height: auto;" title="Shown in red on the document (editable fields)">
+                <input type="text" id="doc-title-input" class="search-input" value="EKSESAIS" style="padding: 0.5rem 0.75rem; font-size: 0.85rem; height: auto;" title="Shown in red on the document (editable fields)">
             </div>
             
             {% if auth_enabled and username %}
@@ -69,16 +69,16 @@
             <!-- Category Selection Navigation Tabs -->
             <nav class="category-tabs">
                 <button class="tab-btn active" data-tab="topography">
-                    <i class="fas fa-mountain"></i> Topography
+                    <i class="fas fa-mountain"></i> Topo Raster
                 </button>
                 <button class="tab-btn" data-tab="landused">
-                    <i class="fas fa-tree"></i> Land Used
+                    <i class="fas fa-tree"></i> Landused
                 </button>
                 <button class="tab-btn" data-tab="dted">
                     <i class="fas fa-map-marked-alt"></i> DTED Elevation
                 </button>
                 <button class="tab-btn" data-tab="sjungu">
-                    <i class="fas fa-map"></i> Sjung
+                    <i class="fas fa-map"></i> Topo
                 </button>
             </nav>
 
@@ -110,7 +110,7 @@
                         </button>
                         {% if user_role == 'admin' %}
                         <div class="crud-actions" data-category="topography">
-                            <button type="button" class="btn btn-outline btn-crud btn-crud-add" title="Add topography record">
+                            <button type="button" class="btn btn-outline btn-crud btn-crud-add" title="Add Topo Raster record">
                                 <i class="fas fa-plus"></i> Add
                             </button>
                             <button type="button" class="btn btn-outline btn-crud btn-crud-edit" title="Edit selected record">
@@ -122,7 +122,7 @@
                         </div>
                         {% endif %}
                     </div>
-                    <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">Category 1: Topography Database</span>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">Category 1: Topo Raster Database</span>
                 </div>
 
                 <div class="table-wrapper">
@@ -151,12 +151,12 @@
                 </div>
             </div>
 
-            <!-- CATEGORY 2: Land Used Selector Pane -->
+            <!-- CATEGORY 2: Landused Selector Pane -->
             <div id="landused-content" class="category-content">
                 <div class="table-controls">
                     <div class="search-input-wrapper">
                         <i class="fas fa-search search-icon"></i>
-                        <input type="text" id="land-search" class="search-input" placeholder="Search land use description...">
+                        <input type="text" id="land-search" class="search-input" placeholder="Search landused description...">
                     </div>
                 </div>
 
@@ -167,7 +167,7 @@
                         </button>
                         {% if user_role == 'admin' %}
                         <div class="crud-actions" data-category="landused">
-                            <button type="button" class="btn btn-outline btn-crud btn-crud-add" title="Add land use record">
+                            <button type="button" class="btn btn-outline btn-crud btn-crud-add" title="Add landused record">
                                 <i class="fas fa-plus"></i> Add
                             </button>
                             <button type="button" class="btn btn-outline btn-crud btn-crud-edit" title="Edit selected record">
@@ -179,7 +179,7 @@
                         </div>
                         {% endif %}
                     </div>
-                    <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">Category 2: Land Coverage Classification</span>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">Category 2: Landused Classification</span>
                 </div>
 
                 <div class="table-wrapper">
@@ -188,7 +188,7 @@
                             <tr>
                                 <th style="width: 8%;">Select</th>
                                 <th style="width: 72%;">Category</th>
-                                <th style="width: 20%;">Land Used ID</th>
+                                <th style="width: 20%;">Landused ID</th>
                             </tr>
                         </thead>
                         <tbody id="land-table-body">
@@ -264,7 +264,7 @@
                 </div>
             </div>
 
-            <!-- CATEGORY 4: Sjung Selector Pane -->
+            <!-- CATEGORY 4: Topo Selector Pane -->
             <div id="sjungu-content" class="category-content">
                 <div class="table-controls">
                     <div class="search-input-wrapper">
@@ -280,7 +280,7 @@
                         </button>
                         {% if user_role == 'admin' %}
                         <div class="crud-actions" data-category="sjungu">
-                            <button type="button" class="btn btn-outline btn-crud btn-crud-add" title="Add Sjung record">
+                            <button type="button" class="btn btn-outline btn-crud btn-crud-add" title="Add Topo record">
                                 <i class="fas fa-plus"></i> Add
                             </button>
                             <button type="button" class="btn btn-outline btn-crud btn-crud-edit" title="Edit selected record">
@@ -292,7 +292,7 @@
                         </div>
                         {% endif %}
                     </div>
-                    <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">Category 4: Sjung Database</span>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">Category 4: Topo Database</span>
                 </div>
 
                 <div class="table-wrapper">
@@ -354,7 +354,7 @@
                 <div class="doc-title-block">
                     <div class="doc-main-title">SENARAI LEMBARAN DAN JENIS PETA</div>
                     <div class="doc-subtitle doc-input-text" id="document-title-header">
-                        EKSESAIS LATIHAN TAHUN 2026
+                        EKSESAIS
                     </div>
                 </div>
 
