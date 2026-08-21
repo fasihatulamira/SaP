@@ -890,6 +890,20 @@ body.light-theme .document-frame {
     box-sizing: border-box;
 }
 
+/* Match official KEMBARAN I Word column proportions */
+.doc-table-topo .col-num { width: 9.4%; }
+.doc-table-topo .col-sheet-num { width: 19%; }
+.doc-table-topo .col-sheet-name { width: 38.6%; }
+.doc-table-topo .col-sheet-scale { width: 16.6%; }
+.doc-table-topo .col-release-year { width: 16.5%; }
+
+.doc-table-landused .col-num,
+.doc-table-dted .col-num { width: 9.4%; }
+.doc-table-landused .col-category,
+.doc-table-dted .col-id-name { width: 71.9%; }
+.doc-table-landused .col-landused-id,
+.doc-table-dted .col-level { width: 18.7%; }
+
 /* Word Gold, Accent 4, Lighter 40% */
 .doc-table th {
     background: #FFD966 !important;

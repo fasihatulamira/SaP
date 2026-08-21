@@ -3,7 +3,7 @@ const SELECTION_STORAGE_KEY = "gis_info_selections";
 const PAGE_SIZE_STORAGE_KEY = "gis_info_page_size";
 const PAGE_SIZE_OPTIONS = [8, 10, 15];
 const DEFAULT_PAGE_SIZE = 10;
-const DEFAULT_DOC_SUBTITLE = "EKSESAIS LATIHAN TAHUN 2026";
+const DEFAULT_DOC_SUBTITLE = "EKSESAIS";
 const EXPORT_NAME_PREFIX = "KEMBARAN I - GIS INFO";
 
 function getDocumentSubtitle() {
@@ -123,8 +123,8 @@ const TABLE_CONFIG = {
         nextBtn: () => DOM.topoNext,
         selectAllBtn: () => DOM.topoSelectAll,
         colspan: 5,
-        emptyMessage: "No topography records found",
-        rowLabel: (row) => `Select topography sheet ${row.sheetNum}`,
+        emptyMessage: "No Topo Raster records found",
+        rowLabel: (row) => `Select Topo Raster sheet ${row.sheetNum}`,
         columns: [
             { style: "font-weight: 600; color: var(--primary-light);", value: (row) => row.sheetNum },
             { value: (row) => row.sheetName },
@@ -157,8 +157,8 @@ const TABLE_CONFIG = {
         nextBtn: () => DOM.landNext,
         selectAllBtn: () => DOM.landSelectAll,
         colspan: 3,
-        emptyMessage: "No land use categories found",
-        rowLabel: (row) => `Select land use category ${row.category}`,
+        emptyMessage: "No landused categories found",
+        rowLabel: (row) => `Select landused category ${row.category}`,
         columns: [
             { value: (row) => row.category },
             { value: (row) => row.landused_id, style: "font-weight: 600; color: var(--primary-light);" }
@@ -172,8 +172,8 @@ const TABLE_CONFIG = {
         nextBtn: () => DOM.sjunguNext,
         selectAllBtn: () => DOM.sjunguSelectAll,
         colspan: 4,
-        emptyMessage: "No Sjung records found",
-        rowLabel: (row) => `Select Sjung sheet ${row.sheetNum}`,
+        emptyMessage: "No Topo records found",
+        rowLabel: (row) => `Select Topo sheet ${row.sheetNum}`,
         columns: [
             { style: "font-weight: 600; color: var(--primary-light);", value: (row) => row.sheetNum },
             { value: (row) => row.sheetName },
@@ -184,7 +184,7 @@ const TABLE_CONFIG = {
 
 const RECORD_SCHEMA = {
     topography: {
-        label: "Topography",
+        label: "Topo Raster",
         fields: [
             { name: "sheetNum", label: "Sheet Number", type: "text", required: true, primaryKey: true },
             { name: "sheetName", label: "Sheet Name", type: "text", required: true },
@@ -193,9 +193,9 @@ const RECORD_SCHEMA = {
         ]
     },
     landused: {
-        label: "Land Used",
+        label: "Landused",
         fields: [
-            { name: "landused_id", label: "Land Used ID", type: "number", required: true, primaryKey: true },
+            { name: "landused_id", label: "Landused ID", type: "number", required: true, primaryKey: true },
             { name: "category", label: "Category", type: "text", required: true }
         ]
     },
@@ -207,7 +207,7 @@ const RECORD_SCHEMA = {
         ]
     },
     sjungu: {
-        label: "Sjung",
+        label: "Topo",
         fields: [
             { name: "sheetNum", label: "Sheet Number", type: "text", required: true, primaryKey: true },
             { name: "sheetName", label: "Sheet Name", type: "text", required: true },
@@ -994,7 +994,14 @@ function renderDocumentPreview() {
         html += `
             <div class="doc-section">
                 <div class="doc-section-title">${sectionLetter()}. Raster Topography</div>
-                <table class="doc-table">
+                <table class="doc-table doc-table-topo">
+                    <colgroup>
+                        <col class="col-num">
+                        <col class="col-sheet-num">
+                        <col class="col-sheet-name">
+                        <col class="col-sheet-scale">
+                        <col class="col-release-year">
+                    </colgroup>
                     <thead>
                         <tr>
                             <th>NUM.</th>
@@ -1041,7 +1048,12 @@ function renderDocumentPreview() {
         html += `
             <div class="doc-section doc-section-follow">
                 <div class="doc-section-title">${sectionLetter()}. Landused</div>
-                <table class="doc-table">
+                <table class="doc-table doc-table-landused">
+                    <colgroup>
+                        <col class="col-num">
+                        <col class="col-category">
+                        <col class="col-landused-id">
+                    </colgroup>
                     <thead>
                         <tr>
                             <th>NUM.</th>
@@ -1071,7 +1083,12 @@ function renderDocumentPreview() {
         html += `
             <div class="doc-section doc-section-follow">
                 <div class="doc-section-title">${sectionLetter()}. Digital Terrain Elevation Data (DTED)</div>
-                <table class="doc-table">
+                <table class="doc-table doc-table-dted">
+                    <colgroup>
+                        <col class="col-num">
+                        <col class="col-id-name">
+                        <col class="col-level">
+                    </colgroup>
                     <thead>
                         <tr>
                             <th>NUM.</th>

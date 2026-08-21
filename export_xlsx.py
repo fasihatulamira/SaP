@@ -32,7 +32,7 @@ def build_export_workbook(report_title, report_ref, selections):
     wb = Workbook()
     ws = wb.active
     ws.title = "GIS INFO"
-    ws["A1"] = report_title or "EKSESAIS LATIHAN TAHUN 2026"
+    ws["A1"] = report_title or "EKSESAIS"
     ws["A1"].font = Font(name="Times New Roman", bold=True, size=12, color="000000")
     ws["A2"] = f"Reference: {report_ref or '—'}"
     ws["A2"].font = Font(name="Times New Roman", size=12)
@@ -44,16 +44,16 @@ def build_export_workbook(report_title, report_ref, selections):
     sjungu = selections.get("sjungu") or []
     if topo or sjungu:
         combined = [
-            ["Topography", r.get("sheetNum"), r.get("sheetName"), r.get("sheetScale"), r.get("release_year", "")]
+            ["Topo Raster", r.get("sheetNum"), r.get("sheetName"), r.get("sheetScale"), r.get("release_year", "")]
             for r in topo
         ] + [
-            ["Sjung", r.get("sheetNum"), r.get("sheetName"), r.get("sheetScale"), ""]
+            ["Topo", r.get("sheetNum"), r.get("sheetName"), r.get("sheetScale"), ""]
             for r in sjungu
         ]
         row = _write_section(
             ws,
             row,
-            "TOPOGRAPHY & SJUNG",
+            "TOPO RASTER & TOPO",
             ["Type", "Sheet Number", "Sheet Name", "Scale", "Year"],
             combined,
         )
@@ -63,8 +63,8 @@ def build_export_workbook(report_title, report_ref, selections):
         row = _write_section(
             ws,
             row,
-            "LAND USE",
-            ["No.", "Category", "Land Used ID"],
+            "LANDUSED",
+            ["No.", "Category", "Landused ID"],
             [[idx + 1, r.get("category"), r.get("landused_id")] for idx, r in enumerate(land)],
         )
 

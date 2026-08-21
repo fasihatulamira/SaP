@@ -5,7 +5,7 @@ from io import BytesIO
 from flask import Flask, jsonify, render_template, request, send_file
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from psycopg2 import IntegrityError
+from mysql.connector import errors as mysql_errors
 
 import database
 from database import (
@@ -215,7 +215,7 @@ def get_category_records(category):
     except Exception as exc:
         logger.exception("Failed to fetch records for category: %s", category)
         return jsonify({
-            "error": "Database unavailable. Check DATABASE_URL and that Supabase is running.",
+            "error": "Database unavailable. If using Aiven free MySQL, power it on and retry.",
             "detail": str(exc)[:200],
         }), 503
 
@@ -270,7 +270,7 @@ def create_category_record(category):
         return jsonify({"ok": True, "record": record}), 201
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
-    except IntegrityError:
+    except mysql_errors.IntegrityError:
         return jsonify({"error": "A record with that identifier already exists."}), 409
     except Exception:
         logger.exception("Failed to create record for category: %s", category)
@@ -494,7 +494,7 @@ def export_xlsx():
         return jsonify({"error": "No records selected for export."}), 400
 
     report_ref = data.get("report_ref")
-    report_title = data.get("report_title", "EKSESAIS LATIHAN TAHUN 2026")
+    report_title = data.get("report_title", "EKSESAIS")
 
     try:
         buffer = build_export_workbook(report_title, report_ref, selections)
@@ -538,7 +538,7 @@ def export_docx():
         return jsonify({"error": "No records selected for export."}), 400
 
     report_ref = data.get("report_ref")
-    report_title = data.get("report_title", "EKSESAIS LATIHAN TAHUN 2026")
+    report_title = data.get("report_title", "EKSESAIS")
 
     try:
         buffer = build_export_docx(report_title, report_ref, selections)
