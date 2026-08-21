@@ -700,8 +700,8 @@ async function buildPreviewPdfBlob(filename) {
         },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
         pagebreak: {
-            mode: ["css", "legacy"],
-            avoid: ["tr", ".doc-page-header", ".doc-title-block"]
+            mode: ["css"],
+            avoid: [".doc-page-header", ".doc-title-block", ".doc-section-title"]
         }
     };
 
@@ -1244,8 +1244,16 @@ async function printDocument() {
         DOM.btnPrint.disabled = getSelectionCount() === 0;
     }
 
+    document.body.classList.add("is-printing");
+    const restorePrintChrome = () => {
+        document.body.classList.remove("is-printing");
+        document.title = previousTitle;
+        window.removeEventListener("afterprint", restorePrintChrome);
+    };
+    window.addEventListener("afterprint", restorePrintChrome);
     window.print();
-    document.title = previousTitle;
+    // Fallback if afterprint never fires (some browsers)
+    setTimeout(restorePrintChrome, 2000);
 }
 
 function getRecordId(category, row) {

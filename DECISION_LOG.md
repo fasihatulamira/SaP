@@ -1,5 +1,22 @@
 # Decision Log
 
+## 2026-08-21 — Print shadow + Generate PDF TOTAL gap
+
+### Decision
+Tighten print/PDF chrome stripping and stop html2pdf from avoiding every `<tr>` (which opened gaps before TOTAL).
+
+### Why
+User compared Generate PDF vs Print→Save as PDF: Generate had TOTAL row visually detached; Print still showed a faint card shadow.
+
+### Fix
+- Print: beat `body.light-theme .document-frame` specificity; zero shadow/border on `.preview-panel`; `body.is-printing` class around `window.print()`.
+- Generate PDF: `pagebreak.mode = ["css"]` without `avoid: tr`; force collapsed table borders in `.pdf-capture`.
+
+### QA
+Pending live eye-check after deploy on main + supabase.
+
+---
+
 ## 2026-08-20 — AI Council Cursor rule
 
 ### Decision

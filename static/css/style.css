@@ -672,6 +672,25 @@ body.pdf-exporting {
     overflow-x: visible !important;
 }
 
+/* Browser Print / Save as PDF — strip card chrome before dialog paints */
+body.is-printing .preview-panel,
+body.is-printing .preview-panel.glass-card,
+body.is-printing .document-frame,
+body.light-theme.is-printing .document-frame {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    filter: none !important;
+    border-radius: 0 !important;
+    background: #ffffff !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+body.is-printing .preview-panel {
+    padding: 0 !important;
+}
+
 /* backdrop-filter breaks html2canvas — disable during PDF capture */
 body.pdf-exporting .glass-card,
 body.pdf-exporting .preview-panel,
@@ -722,6 +741,26 @@ body.pdf-exporting .preview-panel {
 .document-frame.pdf-capture .doc-table {
     width: 100% !important;
     max-width: 100% !important;
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+    margin-bottom: 0.75rem !important;
+}
+
+/* html2pdf "avoid: tr" + break-inside:avoid opens gaps before TOTAL; allow natural flow */
+.document-frame.pdf-capture .doc-table tr {
+    break-inside: auto !important;
+    page-break-inside: auto !important;
+}
+
+.document-frame.pdf-capture .doc-table th,
+.document-frame.pdf-capture .doc-table td {
+    border: 1px solid #000000 !important;
+    margin: 0 !important;
+}
+
+.document-frame.pdf-capture .doc-table tr.doc-total-row td {
+    border: 1px solid #000000 !important;
+    background: #ffffff !important;
 }
 
 .document-frame.pdf-capture .doc-section {
@@ -1242,16 +1281,33 @@ body.light-theme .status-banner.success {
         width: 100% !important;
     }
     
-    .preview-panel {
+    .preview-panel,
+    .preview-panel.glass-card,
+    body.light-theme .preview-panel,
+    body.light-theme .preview-panel.glass-card {
         display: block !important;
         width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+        filter: none !important;
+        border-radius: 0 !important;
+        background: #ffffff !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
     }
     
-    /* Format the document card into a borderless, full-bleed printable block */
-    .document-frame {
+    /* Beat body.light-theme .document-frame shadow specificity */
+    .document-frame,
+    body.light-theme .document-frame {
         border: none !important;
+        outline: none !important;
         box-shadow: none !important;
-        background: transparent !important;
+        filter: none !important;
+        border-radius: 0 !important;
+        background: #ffffff !important;
         padding: 0 !important;
         width: 100% !important;
         height: auto !important;
