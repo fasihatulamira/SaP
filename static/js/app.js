@@ -469,12 +469,14 @@ async function fetchCurrentUser() {
 const LIST_SORT = {
     topography: (a, b) => String(a.sheetNum).localeCompare(String(b.sheetNum)),
     dted: (a, b) => String(a.id_name).localeCompare(String(b.id_name)),
-    landused: (a, b) => Number(a.landused_id) - Number(b.landused_id),
     sjungu: (a, b) => String(a.sheetNum).localeCompare(String(b.sheetNum))
 };
 
 function getSelectedSorted(category) {
     const items = Array.from(state.selected[category].values());
+    if (category === "landused") {
+        return items.map((row, idx) => ({ ...row, landused_id: idx + 1 }));
+    }
     const sorter = LIST_SORT[category];
     if (!sorter) return items;
     return items.sort(sorter);
@@ -1068,7 +1070,7 @@ function renderDocumentPreview() {
                     <thead>
                         <tr>
                             <th>NUM.</th>
-                            <th>CATEGORY</th>
+                            <th class="doc-cell-left">CATEGORY</th>
                             <th>LANDUSED ID</th>
                         </tr>
                     </thead>
@@ -1076,7 +1078,7 @@ function renderDocumentPreview() {
                         ${selectedLand.map((row, idx) => `
                             <tr>
                                 <td class="doc-input-text">${idx + 1}</td>
-                                <td class="doc-input-text">${escapeHtml(row.category)}</td>
+                                <td class="doc-input-text doc-cell-left">${escapeHtml(row.category)}</td>
                                 <td class="doc-input-text">${escapeHtml(row.landused_id)}</td>
                             </tr>
                         `).join("")}
@@ -1103,7 +1105,7 @@ function renderDocumentPreview() {
                     <thead>
                         <tr>
                             <th>NUM.</th>
-                            <th>IDENTIFICATION NAME</th>
+                            <th class="doc-cell-left">IDENTIFICATION NAME</th>
                             <th>LEVEL</th>
                         </tr>
                     </thead>
@@ -1111,7 +1113,7 @@ function renderDocumentPreview() {
                         ${selectedDted.map((row, idx) => `
                             <tr>
                                 <td class="doc-input-text">${idx + 1}</td>
-                                <td class="doc-input-text">${escapeHtml(row.id_name)}</td>
+                                <td class="doc-input-text doc-cell-left">${escapeHtml(row.id_name)}</td>
                                 <td class="doc-input-text">${escapeHtml(row.level)}</td>
                             </tr>
                         `).join("")}

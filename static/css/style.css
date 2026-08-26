@@ -779,6 +779,11 @@ body.pdf-exporting .preview-panel {
     margin: 0 !important;
 }
 
+.document-frame.pdf-capture .doc-table th.doc-cell-left,
+.document-frame.pdf-capture .doc-table td.doc-cell-left {
+    text-align: left !important;
+}
+
 .document-frame.pdf-capture .doc-table tr.doc-total-row td {
     border: 1px solid #000000 !important;
     background: #ffffff !important;
@@ -951,6 +956,11 @@ body.light-theme .document-frame {
     box-sizing: border-box;
     word-wrap: break-word;
     overflow-wrap: break-word;
+}
+
+.doc-table th.doc-cell-left,
+.doc-table td.doc-cell-left {
+    text-align: left;
 }
 
 .doc-table tbody tr:nth-child(even):not(.doc-total-row) {
@@ -1447,6 +1457,11 @@ body.light-theme .status-banner.success {
     .doc-table td {
         border: 1px solid #000000 !important;
         color: #000000 !important;
+    }
+
+    .doc-table th.doc-cell-left,
+    .doc-table td.doc-cell-left {
+        text-align: left !important;
     }
     
     .doc-table tr.doc-total-row td {

@@ -63,8 +63,7 @@ def _set_cell_shading(cell, fill=HEADER_FILL):
 def _set_cell_text(cell, text, *, bold=False, center=True, header=False):
     cell.text = ""
     para = cell.paragraphs[0]
-    if center:
-        para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    para.alignment = WD_ALIGN_PARAGRAPH.CENTER if center else WD_ALIGN_PARAGRAPH.LEFT
     run = para.add_run("" if text is None else str(text))
     _set_run_font(run, bold=bold)
     if header:
@@ -104,15 +103,16 @@ def _set_table_column_widths(table, widths_twips):
             cell.width = Twips(widths_twips[idx])
 
 
-def _fill_table(table, headers, rows, total_label):
+def _fill_table(table, headers, rows, total_label, left_align_cols=()):
+    left_align_cols = set(left_align_cols)
     hdr = table.rows[0].cells
     for i, header in enumerate(headers):
-        _set_cell_text(hdr[i], header, bold=True, header=True)
+        _set_cell_text(hdr[i], header, bold=True, header=True, center=i not in left_align_cols)
 
     for r_idx, row_vals in enumerate(rows, start=1):
         cells = table.rows[r_idx].cells
         for c_idx, value in enumerate(row_vals):
-            _set_cell_text(cells[c_idx], value, bold=False)
+            _set_cell_text(cells[c_idx], value, bold=False, center=c_idx not in left_align_cols)
 
     total_row = table.rows[-1].cells
     for c_idx in range(len(headers) - 1):
@@ -120,10 +120,10 @@ def _fill_table(table, headers, rows, total_label):
     _set_cell_text(total_row[-1], total_label, bold=True)
 
 
-def _add_data_table(doc, headers, rows, total_label, col_widths_twips):
+def _add_data_table(doc, headers, rows, total_label, col_widths_twips, left_align_cols=()):
     table = doc.add_table(rows=len(rows) + 2, cols=len(headers))
     table.style = "Table Grid"
-    _fill_table(table, headers, rows, total_label)
+    _fill_table(table, headers, rows, total_label, left_align_cols=left_align_cols)
     _set_table_column_widths(table, col_widths_twips)
     return table
 
@@ -203,7 +203,7 @@ def build_export_docx(report_title, report_ref, selections):
     if land:
         _add_section_title(doc, next_label("Landused"))
         rows = [
-            [idx + 1, r.get("category", ""), r.get("landused_id", "")]
+            [idx + 1, r.get("category", ""), idx + 1]
             for idx, r in enumerate(land)
         ]
         _add_data_table(
@@ -212,6 +212,7 @@ def build_export_docx(report_title, report_ref, selections):
             rows,
             str(len(land)),
             LAND_DTED_COL_TWIPS,
+            left_align_cols=(1,),
         )
 
     dted = selections.get("dted") or []
@@ -227,6 +228,7 @@ def build_export_docx(report_title, report_ref, selections):
             rows,
             str(len(dted)),
             LAND_DTED_COL_TWIPS,
+            left_align_cols=(1,),
         )
 
     # report_ref kept out of the Word body to match the official kembaran

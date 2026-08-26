@@ -159,3 +159,32 @@ class TestFiltersAPI:
     def test_filters_requires_auth(self, client):
         response = client.get("/api/filters")
         assert response.status_code == 401
+
+
+class TestLandusedExportOrder:
+    def test_landused_ids_follow_payload_order(self):
+        from openpyxl import load_workbook
+
+        from export_xlsx import build_export_workbook
+
+        buf = build_export_workbook(
+            "EKSESAIS",
+            "LM-1",
+            {
+                "topography": [],
+                "dted": [],
+                "landused": [
+                    {"category": "air", "landused_id": 99},
+                    {"category": "pertanian", "landused_id": 5},
+                    {"category": "hutan", "landused_id": 12},
+                ],
+                "sjungu": [],
+            },
+        )
+        wb = load_workbook(buf)
+        rows = [tuple(row) for row in wb.active.iter_rows(max_col=3, values_only=True)]
+        header_idx = next(i for i, row in enumerate(rows) if row[:3] == ("No.", "Category", "Landused ID"))
+        assert rows[header_idx + 1][:3] == (1, "air", 1)
+        assert rows[header_idx + 2][:3] == (2, "pertanian", 2)
+        assert rows[header_idx + 3][:3] == (3, "hutan", 3)
+

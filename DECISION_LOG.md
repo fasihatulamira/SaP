@@ -1,5 +1,20 @@
 # Decision Log
 
+## 2026-08-26 — Landused IDs follow selection order + left-align names
+
+### Decision
+Landused **LANDUSED ID** on the document/export is the selection sequence (1, 2, 3…), not the stored catalog ID. Landused **CATEGORY** and DTED **IDENTIFICATION NAME** cells are left-aligned.
+
+### Why
+Admins pick categories in report order (e.g. air → pertanian → hutan) and want those positions as the IDs. Name columns were centered and harder to read.
+
+### Design
+1. Client keeps landused Map insertion order (click order); `getSelectedSorted("landused")` assigns `landused_id = index + 1`.
+2. Word/Excel also number landused IDs as `idx + 1` in payload order.
+3. CSS/Word/Excel left-align the category / identification-name column only.
+
+---
+
 ## 2026-08-26 — Admin edit/delete for archived audit documents
 
 ### Decision

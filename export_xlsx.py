@@ -10,7 +10,7 @@ TITLE_FONT = Font(name="Times New Roman", bold=True, size=12)
 HEADER_FONT = Font(name="Times New Roman", color="FFFFFF", bold=True, size=12)
 
 
-def _write_section(ws, start_row, title, headers, rows):
+def _write_section(ws, start_row, title, headers, rows, left_cols=()):
     ws.cell(row=start_row, column=1, value=title).font = TITLE_FONT
     start_row += 1
 
@@ -18,11 +18,12 @@ def _write_section(ws, start_row, title, headers, rows):
         cell = ws.cell(row=start_row, column=col, value=header)
         cell.fill = HEADER_FILL
         cell.font = HEADER_FONT
-        cell.alignment = Alignment(horizontal="center")
+        cell.alignment = Alignment(horizontal="left" if col in left_cols else "center")
 
     for offset, row in enumerate(rows, start=1):
         for col, value in enumerate(row, start=1):
-            ws.cell(row=start_row + offset, column=col, value=value)
+            cell = ws.cell(row=start_row + offset, column=col, value=value)
+            cell.alignment = Alignment(horizontal="left" if col in left_cols else "center")
 
     return start_row + len(rows) + 2
 
@@ -65,7 +66,8 @@ def build_export_workbook(report_title, report_ref, selections):
             row,
             "LANDUSED",
             ["No.", "Category", "Landused ID"],
-            [[idx + 1, r.get("category"), r.get("landused_id")] for idx, r in enumerate(land)],
+            [[idx + 1, r.get("category"), idx + 1] for idx, r in enumerate(land)],
+            left_cols=(2,),
         )
 
     dted = selections.get("dted") or []
@@ -76,6 +78,7 @@ def build_export_workbook(report_title, report_ref, selections):
             "DTED",
             ["No.", "ID / Path", "Level"],
             [[idx + 1, r.get("id_name"), r.get("level")] for idx, r in enumerate(dted)],
+            left_cols=(2,),
         )
 
     for column in ws.columns:
