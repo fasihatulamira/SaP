@@ -1,9 +1,19 @@
 # Decision Log
 
+## 2026-08-26 — Header stay centered; data cells left-aligned
+
+### Decision
+Landused CATEGORY and DTED IDENTIFICATION NAME **headers** stay centered; only **item** (data) cells are left-aligned.
+
+### Why
+User wanted title row centered and body text left-aligned for readability.
+
+---
+
 ## 2026-08-26 — Landused IDs follow selection order + left-align names
 
 ### Decision
-Landused **LANDUSED ID** on the document/export is the selection sequence (1, 2, 3…), not the stored catalog ID. Landused **CATEGORY** and DTED **IDENTIFICATION NAME** cells are left-aligned.
+Landused **LANDUSED ID** on the document/export is the selection sequence (1, 2, 3…), not the stored catalog ID. Landused **CATEGORY** and DTED **IDENTIFICATION NAME** data cells are left-aligned (headers remain centered).
 
 ### Why
 Admins pick categories in report order (e.g. air → pertanian → hutan) and want those positions as the IDs. Name columns were centered and harder to read.

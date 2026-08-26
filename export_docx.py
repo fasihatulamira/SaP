@@ -107,7 +107,7 @@ def _fill_table(table, headers, rows, total_label, left_align_cols=()):
     left_align_cols = set(left_align_cols)
     hdr = table.rows[0].cells
     for i, header in enumerate(headers):
-        _set_cell_text(hdr[i], header, bold=True, header=True, center=i not in left_align_cols)
+        _set_cell_text(hdr[i], header, bold=True, header=True, center=True)
 
     for r_idx, row_vals in enumerate(rows, start=1):
         cells = table.rows[r_idx].cells

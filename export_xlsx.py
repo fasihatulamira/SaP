@@ -18,7 +18,7 @@ def _write_section(ws, start_row, title, headers, rows, left_cols=()):
         cell = ws.cell(row=start_row, column=col, value=header)
         cell.fill = HEADER_FILL
         cell.font = HEADER_FONT
-        cell.alignment = Alignment(horizontal="left" if col in left_cols else "center")
+        cell.alignment = Alignment(horizontal="center")
 
     for offset, row in enumerate(rows, start=1):
         for col, value in enumerate(row, start=1):

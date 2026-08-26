@@ -1070,7 +1070,7 @@ function renderDocumentPreview() {
                     <thead>
                         <tr>
                             <th>NUM.</th>
-                            <th class="doc-cell-left">CATEGORY</th>
+                            <th>CATEGORY</th>
                             <th>LANDUSED ID</th>
                         </tr>
                     </thead>
@@ -1105,7 +1105,7 @@ function renderDocumentPreview() {
                     <thead>
                         <tr>
                             <th>NUM.</th>
-                            <th class="doc-cell-left">IDENTIFICATION NAME</th>
+                            <th>IDENTIFICATION NAME</th>
                             <th>LEVEL</th>
                         </tr>
                     </thead>
