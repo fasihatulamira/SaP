@@ -203,7 +203,7 @@ const RECORD_SCHEMA = {
     landused: {
         label: "Landused",
         fields: [
-            { name: "landused_id", label: "Landused ID", type: "number", required: true, primaryKey: true },
+            { name: "landused_id", label: "Landused ID", type: "number", required: false, primaryKey: true, hideOnAdd: true, readOnlyOnEdit: true },
             { name: "category", label: "Category", type: "text", required: true }
         ]
     },
