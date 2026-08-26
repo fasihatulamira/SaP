@@ -1,5 +1,58 @@
 # Decision Log
 
+## 2026-08-26 — Admin edit/delete for archived audit documents
+
+### Decision
+Admins can **view**, **edit**, and **delete** archived export/print documents from the Audit Log page. Edit replaces or renames the stored file in place. Delete removes the audit log row and its document.
+
+### Why
+Admins could previously only reopen the archived file. They needed a way to correct a bad archive (wrong file / name) and to remove documents that should not stay in history.
+
+### Design
+1. `PUT /api/audit/<id>/document` (admin): rename and/or replace PDF/XLSX/DOCX (same 15 MB + MIME rules as archive).
+2. `DELETE /api/audit/<id>` (admin): delete `audit_log` row after deleting `audit_document` (works even if FK cascade is missing).
+3. Audit Log **Details** column: the document name still **views**; labeled **Edit** and **Delete** buttons sit beside it (not a separate Actions column, which was easy to miss / clip).
+4. Edit uses a nested modal (filename + optional file). Delete uses a confirm dialog.
+5. Replacements record `replaced_by` + `replaced_at` in `audit_log.details` so the mutation is visible in the remaining entry.
+
+### Constraints
+- User role remains 403 on list/view/edit/delete of archived documents.
+- Mutating the audit archive is an explicit product choice; the original export event timestamp is kept.
+
+### QA
+Pass (`python -m pytest` — 44 tests).
+- Admin-only PUT/DELETE; user 403 covered in `tests/test_roles_audit.py`.
+- Postgres BYTEA writes use `psycopg2.Binary` on this branch (`database.py` `update_audit_document`).
+
+---
+
+## 2026-08-21 — Category rename + KEMBARAN column widths + subtitle
+
+### Decision
+UI tabs: Topography→**Topo Raster**, Land Used→**Landused**, Sjung→**Topo**. Default subtitle → **EKSESAIS**. Document/PDF/Word table columns match official KEMBARAN I sample proportions.
+
+### Why
+User alignment with company naming and official kembaran layout (SHEET NAME wider; NUM. narrow).
+
+---
+
+## 2026-08-21 — Print shadow + Generate PDF TOTAL gap
+
+### Decision
+Tighten print/PDF chrome stripping and stop html2pdf from avoiding every `<tr>` (which opened gaps before TOTAL).
+
+### Why
+User compared Generate PDF vs Print→Save as PDF: Generate had TOTAL row visually detached; Print still showed a faint card shadow.
+
+### Fix
+- Print: beat `body.light-theme .document-frame` specificity; zero shadow/border on `.preview-panel`; `body.is-printing` class around `window.print()`.
+- Generate PDF: `pagebreak.mode = ["css"]` without `avoid: tr`; force collapsed table borders in `.pdf-capture`.
+
+### QA
+Pending live eye-check after deploy on main + supabase.
+
+---
+
 ## 2026-08-20 — Supabase MCP connected + listmap schema applied
 
 ### Decision

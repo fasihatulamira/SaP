@@ -427,6 +427,41 @@
         </div>
     </div>
 
+    <!-- Audit document edit modal (admin only) -->
+    <div id="audit-doc-edit-modal" class="modal modal-nested hidden" role="dialog" aria-labelledby="audit-doc-edit-title" aria-modal="true">
+        <div class="modal-backdrop" id="audit-doc-edit-backdrop"></div>
+        <div class="modal-card glass-card record-modal-card">
+            <div class="modal-header">
+                <h2 id="audit-doc-edit-title"><i class="fas fa-file-pen"></i> Edit Document</h2>
+                <button type="button" id="audit-doc-edit-close" class="btn btn-secondary" aria-label="Close document editor">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="audit-doc-edit-form" class="record-form">
+                    <div class="record-form-fields">
+                        <div class="record-form-field">
+                            <label for="audit-doc-edit-filename">Filename</label>
+                            <input type="text" id="audit-doc-edit-filename" name="filename" required maxlength="255">
+                        </div>
+                        <div class="record-form-field">
+                            <label for="audit-doc-edit-file">Replace file (optional)</label>
+                            <input type="file" id="audit-doc-edit-file" name="file" accept=".pdf,.xlsx,.docx,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+                            <p class="record-form-hint">Leave empty to rename only. PDF, Word, and Excel files up to 15 MB.</p>
+                        </div>
+                    </div>
+                    <p id="audit-doc-edit-error" class="record-form-error hidden" role="alert"></p>
+                    <div class="record-form-actions">
+                        <button type="button" id="audit-doc-edit-cancel" class="btn btn-secondary">Cancel</button>
+                        <button type="submit" id="audit-doc-edit-save" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- JS Dependencies -->
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>

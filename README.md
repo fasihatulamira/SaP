@@ -104,7 +104,7 @@ pytest
 
 | Role | Access |
 |------|--------|
-| **admin** | Full dashboard, exports, audit log viewer |
+| **admin** | Full dashboard, exports, audit log viewer with document view/edit/delete |
 | **user** | Browse, select, export (Excel/PDF/print) — no audit log |
 
 Configure in `.env`:

@@ -1,5 +1,5 @@
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 
 from flask import Flask, jsonify, render_template, request, send_file
@@ -106,14 +106,36 @@ def _safe_filename(name, fallback="document"):
     return cleaned or fallback
 
 
+def _resolve_document_mime(uploaded, form_mime=""):
+    mime_type = ((uploaded.mimetype if uploaded is not None else "") or "").strip() or (form_mime or "").strip()
+    if mime_type in ALLOWED_DOCUMENT_MIME_TYPES:
+        return mime_type
+    name = ((uploaded.filename if uploaded is not None else "") or "").lower()
+    if name.endswith(".pdf"):
+        return "application/pdf"
+    if name.endswith(".xlsx"):
+        return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    if name.endswith(".docx"):
+        return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    return mime_type
+
+
+def _validate_document_payload(file_data, mime_type):
+    if not file_data:
+        return "Document file is empty.", 400
+    if len(file_data) > MAX_AUDIT_DOCUMENT_BYTES:
+        return "Document exceeds maximum allowed size.", 413
+    if mime_type not in ALLOWED_DOCUMENT_MIME_TYPES:
+        return "Unsupported document type.", 400
+    return None, None
+
+
 def _store_audit_document(audit_id, filename, mime_type, file_data):
     if not audit_id or not file_data:
         return False
-    if len(file_data) > MAX_AUDIT_DOCUMENT_BYTES:
-        logger.warning("Rejected oversized audit document for audit_id=%s", audit_id)
-        return False
-    if mime_type not in ALLOWED_DOCUMENT_MIME_TYPES:
-        logger.warning("Rejected unsupported mime type %s for audit_id=%s", mime_type, audit_id)
+    error, _status = _validate_document_payload(file_data, mime_type)
+    if error:
+        logger.warning("Rejected audit document for audit_id=%s: %s", audit_id, error)
         return False
     database.insert_audit_document(
         audit_id=audit_id,
@@ -414,15 +436,11 @@ def create_audit_with_document():
     if uploaded is None or not uploaded.filename:
         return jsonify({"error": "Document file is required."}), 400
 
-    mime_type = (uploaded.mimetype or "").strip() or request.form.get("mime_type", "")
-    if mime_type not in ALLOWED_DOCUMENT_MIME_TYPES:
-        return jsonify({"error": "Unsupported document type."}), 400
-
+    mime_type = _resolve_document_mime(uploaded, request.form.get("mime_type", ""))
     file_data = uploaded.read()
-    if not file_data:
-        return jsonify({"error": "Document file is empty."}), 400
-    if len(file_data) > MAX_AUDIT_DOCUMENT_BYTES:
-        return jsonify({"error": "Document exceeds maximum allowed size."}), 413
+    error, status = _validate_document_payload(file_data, mime_type)
+    if error:
+        return jsonify({"error": error}), status
 
     report_ref = request.form.get("report_ref") or None
     try:
@@ -478,6 +496,77 @@ def download_audit_document(audit_id):
         )
     except Exception:
         logger.exception("Failed to fetch audit document for id=%s", audit_id)
+        return jsonify({"error": API_ERROR_MESSAGE}), 500
+
+
+@app.route("/api/audit/<int:audit_id>/document", methods=["PUT"])
+@admin_required
+@limiter.limit("20 per minute")
+def replace_audit_document(audit_id):
+    """Replace or rename the archived document for an audit entry (admin only)."""
+    uploaded = request.files.get("file")
+    has_file = uploaded is not None and bool(uploaded.filename)
+    requested_name = (request.form.get("filename") or "").strip()
+
+    if not has_file and not requested_name:
+        return jsonify({"error": "A replacement file or new filename is required."}), 400
+
+    try:
+        existing = database.get_audit_document(audit_id)
+        if not existing:
+            return jsonify({"error": "Document not found."}), 404
+
+        mime_type = existing["mime_type"]
+        file_data = None
+        if has_file:
+            mime_type = _resolve_document_mime(uploaded, request.form.get("mime_type", ""))
+            file_data = uploaded.read()
+            error, status = _validate_document_payload(file_data, mime_type)
+            if error:
+                return jsonify({"error": error}), status
+
+        filename = _safe_filename(
+            requested_name or (uploaded.filename if has_file else existing["filename"]),
+            fallback=existing["filename"],
+        )
+        updated = database.update_audit_document(
+            audit_id,
+            filename=filename,
+            mime_type=mime_type if has_file else None,
+            file_data=file_data,
+        )
+        if not updated:
+            return jsonify({"error": "Document not found."}), 404
+
+        user = get_current_user() or {}
+        details_update = {
+            "filename": filename,
+            "mime_type": mime_type,
+            "document_available": True,
+            "replaced_by": user.get("username") or "admin",
+            "replaced_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        database.patch_audit_log_details(audit_id, details_update)
+        return jsonify({"ok": True, "id": audit_id, "filename": filename})
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception:
+        logger.exception("Failed to replace audit document for id=%s", audit_id)
+        return jsonify({"error": API_ERROR_MESSAGE}), 500
+
+
+@app.route("/api/audit/<int:audit_id>", methods=["DELETE"])
+@admin_required
+@limiter.limit("30 per minute")
+def delete_audit_entry(audit_id):
+    """Delete an audit log entry and its archived document (admin only)."""
+    try:
+        deleted = database.delete_audit_log(audit_id)
+        if not deleted:
+            return jsonify({"error": "Audit entry not found."}), 404
+        return jsonify({"ok": True})
+    except Exception:
+        logger.exception("Failed to delete audit entry for id=%s", audit_id)
         return jsonify({"error": API_ERROR_MESSAGE}), 500
 
 

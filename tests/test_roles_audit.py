@@ -219,3 +219,82 @@ class TestAuditDocumentAPI:
     def test_missing_audit_document_returns_404(self, mock_get, auth_client):
         response = auth_client.get("/api/audit/999/document")
         assert response.status_code == 404
+
+    def test_user_cannot_replace_audit_document(self, user_client):
+        response = user_client.put("/api/audit/1/document", data={"filename": "renamed.pdf"})
+        assert response.status_code == 403
+
+    def test_user_cannot_delete_audit_entry(self, user_client):
+        response = user_client.delete("/api/audit/1")
+        assert response.status_code == 403
+
+    @patch("app.database.patch_audit_log_details", return_value=True)
+    @patch("app.database.update_audit_document", return_value=True)
+    @patch("app.database.get_audit_document")
+    def test_admin_can_rename_audit_document(self, mock_get, mock_update, mock_patch, auth_client):
+        mock_get.return_value = {
+            "id": 1,
+            "audit_id": 7,
+            "filename": "report.pdf",
+            "mime_type": "application/pdf",
+            "file_size": 5,
+            "file_data": b"%PDF-",
+            "created_at": "2026-07-30 10:00:00",
+        }
+        response = auth_client.put("/api/audit/7/document", data={"filename": "renamed.pdf"})
+        assert response.status_code == 200
+        assert response.get_json()["filename"] == "renamed.pdf"
+        mock_update.assert_called_once()
+        assert mock_update.call_args.kwargs["filename"] == "renamed.pdf"
+        assert mock_update.call_args.kwargs["file_data"] is None
+        mock_patch.assert_called_once()
+
+    @patch("app.database.patch_audit_log_details", return_value=True)
+    @patch("app.database.update_audit_document", return_value=True)
+    @patch("app.database.get_audit_document")
+    def test_admin_can_replace_audit_document(self, mock_get, mock_update, mock_patch, auth_client):
+        from werkzeug.datastructures import FileStorage
+
+        mock_get.return_value = {
+            "id": 1,
+            "audit_id": 7,
+            "filename": "report.pdf",
+            "mime_type": "application/pdf",
+            "file_size": 5,
+            "file_data": b"%PDF-",
+            "created_at": "2026-07-30 10:00:00",
+        }
+        pdf = FileStorage(
+            stream=BytesIO(b"%PDF-1.4 replacement"),
+            filename="updated.pdf",
+            content_type="application/pdf",
+        )
+        response = auth_client.put(
+            "/api/audit/7/document",
+            data={"filename": "updated.pdf", "file": pdf},
+            content_type="multipart/form-data",
+        )
+        assert response.status_code == 200
+        mock_update.assert_called_once()
+        assert mock_update.call_args.kwargs["file_data"] == b"%PDF-1.4 replacement"
+        mock_patch.assert_called_once()
+
+    @patch("app.database.get_audit_document", return_value=None)
+    def test_replace_missing_audit_document_returns_404(self, mock_get, auth_client):
+        response = auth_client.put("/api/audit/999/document", data={"filename": "gone.pdf"})
+        assert response.status_code == 404
+
+    def test_replace_audit_document_requires_file_or_filename(self, auth_client):
+        response = auth_client.put("/api/audit/7/document", data={})
+        assert response.status_code == 400
+
+    @patch("app.database.delete_audit_log", return_value=True)
+    def test_admin_can_delete_audit_entry(self, mock_delete, auth_client):
+        response = auth_client.delete("/api/audit/7")
+        assert response.status_code == 200
+        mock_delete.assert_called_once_with(7)
+
+    @patch("app.database.delete_audit_log", return_value=False)
+    def test_delete_missing_audit_entry_returns_404(self, mock_delete, auth_client):
+        response = auth_client.delete("/api/audit/999")
+        assert response.status_code == 404
