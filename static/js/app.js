@@ -165,12 +165,11 @@ const TABLE_CONFIG = {
         prevBtn: () => DOM.landPrev,
         nextBtn: () => DOM.landNext,
         selectAllBtn: () => DOM.landSelectAll,
-        colspan: 3,
+        colspan: 2,
         emptyMessage: "No landused categories found",
         rowLabel: (row) => `Select landused category ${row.category}`,
         columns: [
-            { value: (row) => row.category },
-            { value: (row) => row.landused_id, style: "font-weight: 600; color: var(--primary-light);" }
+            { value: (row) => row.category }
         ]
     },
     sjungu: {

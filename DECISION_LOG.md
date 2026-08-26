@@ -1,5 +1,15 @@
 # Decision Log
 
+## 2026-08-26 — Hide landused ID in selection table
+
+### Decision
+Remove **Landused ID** from the landused selection table. Sequential IDs still appear only on the document/export after selection order.
+
+### Why
+Catalog IDs no longer drive the report; showing them in the picker was confusing.
+
+---
+
 ## 2026-08-26 — Header stay centered; data cells left-aligned
 
 ### Decision
