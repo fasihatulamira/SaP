@@ -571,6 +571,71 @@ def get_audit_document(audit_id):
     return row
 
 
+def update_audit_document(audit_id, filename=None, mime_type=None, file_data=None):
+    """Replace archived document bytes and/or filename. Returns True if updated."""
+    audit_id = int(audit_id)
+    if file_data is None and filename is None:
+        raise ValueError("filename or file_data is required.")
+
+    with get_db_cursor(commit=True) as cursor:
+        cursor.execute("SELECT id FROM audit_document WHERE audit_id = %s", (audit_id,))
+        if cursor.fetchone() is None:
+            return False
+
+        if file_data is not None:
+            filename = _require_non_empty_str(filename, "filename")
+            mime_type = _require_non_empty_str(mime_type, "mime_type")
+            cursor.execute(
+                """
+                UPDATE audit_document
+                SET filename = %s, mime_type = %s, file_size = %s, file_data = %s
+                WHERE audit_id = %s
+                """,
+                (filename, mime_type, len(file_data), file_data, audit_id),
+            )
+        else:
+            filename = _require_non_empty_str(filename, "filename")
+            cursor.execute(
+                "UPDATE audit_document SET filename = %s WHERE audit_id = %s",
+                (filename, audit_id),
+            )
+        return True
+
+
+def patch_audit_log_details(audit_id, extra):
+    """Merge keys into audit_log.details JSON. Returns True if the row exists."""
+    audit_id = int(audit_id)
+    extra = extra or {}
+    with get_db_cursor(commit=True, dictionary=True) as cursor:
+        cursor.execute("SELECT details FROM audit_log WHERE id = %s", (audit_id,))
+        row = cursor.fetchone()
+        if row is None:
+            return False
+        details = row.get("details") or {}
+        if isinstance(details, str):
+            try:
+                details = json.loads(details)
+            except json.JSONDecodeError:
+                details = {}
+        if not isinstance(details, dict):
+            details = {}
+        details.update({key: value for key, value in extra.items() if value is not None})
+        cursor.execute(
+            "UPDATE audit_log SET details = %s WHERE id = %s",
+            (json.dumps(details), audit_id),
+        )
+        return True
+
+
+def delete_audit_log(audit_id):
+    """Delete an audit_log row and its archived document. Returns True if deleted."""
+    audit_id = int(audit_id)
+    with get_db_cursor(commit=True) as cursor:
+        cursor.execute("DELETE FROM audit_document WHERE audit_id = %s", (audit_id,))
+        cursor.execute("DELETE FROM audit_log WHERE id = %s", (audit_id,))
+        return cursor.rowcount > 0
+
+
 def get_audit_logs(limit=50):
     """Return recent audit log entries (newest first), excluding sign-in/sign-out."""
     limit = min(max(1, int(limit)), 200)

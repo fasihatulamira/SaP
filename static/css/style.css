@@ -472,6 +472,27 @@ tr.selected .custom-checkbox i {
     gap: 0.5rem;
 }
 
+.record-form-hint {
+    margin: 0.4rem 0 0;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.record-form-error {
+    margin: 0 0 1rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #fca5a5;
+}
+
+.record-form-error.hidden {
+    display: none;
+}
+
+body.light-theme .record-form-error {
+    color: #b91c1c;
+}
+
 /* Buttons */
 .btn {
     display: inline-flex;
@@ -1088,7 +1109,7 @@ body.light-theme .document-frame {
 
 .modal-card {
     position: relative;
-    width: min(960px, 100%);
+    width: min(1080px, 100%);
     max-height: 80vh;
     display: flex;
     flex-direction: column;
@@ -1120,6 +1141,10 @@ body.light-theme .document-frame {
     gap: 0.5rem;
 }
 
+.modal-nested {
+    z-index: 1100;
+}
+
 .audit-action-tag {
     display: inline-block;
     padding: 0.15rem 0.45rem;
@@ -1132,19 +1157,24 @@ body.light-theme .document-frame {
 }
 
 .audit-details-cell {
-    max-width: 260px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    min-width: 280px;
     color: var(--text-muted);
     font-size: 0.75rem;
+}
+
+.audit-doc-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    max-width: 100%;
 }
 
 .audit-doc-link {
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    max-width: 100%;
+    min-width: 0;
+    max-width: 220px;
     padding: 0;
     border: 0;
     background: transparent;
@@ -1153,6 +1183,9 @@ body.light-theme .document-frame {
     font-weight: 600;
     cursor: pointer;
     text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .audit-doc-link:hover {
@@ -1162,6 +1195,16 @@ body.light-theme .document-frame {
 
 .audit-doc-link i {
     flex-shrink: 0;
+}
+
+.audit-doc-edit,
+.audit-doc-delete {
+    flex-shrink: 0;
+}
+
+.audit-doc-delete:hover {
+    border-color: #ef4444;
+    color: #ef4444;
 }
 
 .audit-table {

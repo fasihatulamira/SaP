@@ -102,6 +102,15 @@ const DOM = {
     auditModalClose: document.getElementById("audit-modal-close"),
     auditModalRefresh: document.getElementById("audit-modal-refresh"),
     auditTableBody: document.getElementById("audit-table-body"),
+    auditDocEditModal: document.getElementById("audit-doc-edit-modal"),
+    auditDocEditBackdrop: document.getElementById("audit-doc-edit-backdrop"),
+    auditDocEditClose: document.getElementById("audit-doc-edit-close"),
+    auditDocEditCancel: document.getElementById("audit-doc-edit-cancel"),
+    auditDocEditForm: document.getElementById("audit-doc-edit-form"),
+    auditDocEditFilename: document.getElementById("audit-doc-edit-filename"),
+    auditDocEditFile: document.getElementById("audit-doc-edit-file"),
+    auditDocEditError: document.getElementById("audit-doc-edit-error"),
+    auditDocEditSave: document.getElementById("audit-doc-edit-save"),
     pageSizeSelect: document.getElementById("page-size-select"),
     recordModal: document.getElementById("record-modal"),
     recordModalBackdrop: document.getElementById("record-modal-backdrop"),
@@ -496,6 +505,8 @@ const AUDIT_ACTION_LABELS = {
 };
 
 const AUDIT_ACTIONS_WITHOUT_SELECTION = new Set(["clear_selection", "login_failed"]);
+const AUDIT_TABLE_COLSPAN = 7;
+let auditDocEditState = { auditId: null, filename: "" };
 
 function formatAuditAction(action) {
     return AUDIT_ACTION_LABELS[action] || action;
@@ -1611,6 +1622,10 @@ function setupEventListeners() {
     if (DOM.auditModalClose) DOM.auditModalClose.addEventListener("click", closeAuditModal);
     if (DOM.auditModalBackdrop) DOM.auditModalBackdrop.addEventListener("click", closeAuditModal);
     if (DOM.auditModalRefresh) DOM.auditModalRefresh.addEventListener("click", fetchAuditLogs);
+    if (DOM.auditDocEditClose) DOM.auditDocEditClose.addEventListener("click", closeAuditDocumentEdit);
+    if (DOM.auditDocEditBackdrop) DOM.auditDocEditBackdrop.addEventListener("click", closeAuditDocumentEdit);
+    if (DOM.auditDocEditCancel) DOM.auditDocEditCancel.addEventListener("click", closeAuditDocumentEdit);
+    if (DOM.auditDocEditForm) DOM.auditDocEditForm.addEventListener("submit", saveAuditDocumentEdit);
     if (DOM.pageSizeSelect) DOM.pageSizeSelect.addEventListener("change", onPageSizeChange);
     DOM.docTitleInput.addEventListener("input", updateDocumentTitleText);
     setupCrudEventListeners();
@@ -1623,13 +1638,14 @@ function openAuditModal() {
 }
 
 function closeAuditModal() {
+    closeAuditDocumentEdit();
     if (!DOM.auditModal) return;
     DOM.auditModal.classList.add("hidden");
 }
 
 async function fetchAuditLogs() {
     if (!DOM.auditTableBody) return;
-    const colspan = 7;
+    const colspan = AUDIT_TABLE_COLSPAN;
     DOM.auditTableBody.innerHTML = `<tr><td colspan="${colspan}" class="loading-row"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>`;
 
     try {
@@ -1652,11 +1668,21 @@ async function fetchAuditLogs() {
 
         DOM.auditTableBody.innerHTML = data.items.map((entry) => {
             const details = formatAuditDetails(entry);
+            const auditId = escapeHtml(String(entry.id));
+            const filename = escapeHtml(entry.document_filename || details);
             const detailsCell = entry.has_document
                 ? `<td class="audit-details-cell">
-                     <button type="button" class="audit-doc-link" data-audit-id="${escapeHtml(String(entry.id))}" title="Open archived document">
-                       <i class="fas fa-file-alt"></i> ${escapeHtml(details)}
-                     </button>
+                     <div class="audit-doc-row">
+                       <button type="button" class="audit-doc-link" data-audit-id="${auditId}" title="View archived document">
+                         <i class="fas fa-file-alt"></i> ${escapeHtml(details)}
+                       </button>
+                       <button type="button" class="btn btn-outline btn-crud audit-doc-edit" data-audit-id="${auditId}" data-filename="${filename}" title="Edit document">
+                         <i class="fas fa-pen"></i> Edit
+                       </button>
+                       <button type="button" class="btn btn-outline btn-crud audit-doc-delete" data-audit-id="${auditId}" data-filename="${filename}" title="Delete document">
+                         <i class="fas fa-trash-alt"></i> Delete
+                       </button>
+                     </div>
                    </td>`
                 : `<td class="audit-details-cell" title="${escapeHtml(details)}">${escapeHtml(details)}</td>`;
             return `
@@ -1675,6 +1701,18 @@ async function fetchAuditLogs() {
         DOM.auditTableBody.querySelectorAll(".audit-doc-link").forEach((btn) => {
             btn.addEventListener("click", () => openAuditDocument(btn.getAttribute("data-audit-id")));
         });
+        DOM.auditTableBody.querySelectorAll(".audit-doc-edit").forEach((btn) => {
+            btn.addEventListener("click", () => openAuditDocumentEdit(
+                btn.getAttribute("data-audit-id"),
+                btn.getAttribute("data-filename") || ""
+            ));
+        });
+        DOM.auditTableBody.querySelectorAll(".audit-doc-delete").forEach((btn) => {
+            btn.addEventListener("click", () => deleteAuditDocument(
+                btn.getAttribute("data-audit-id"),
+                btn.getAttribute("data-filename") || ""
+            ));
+        });
     } catch (e) {
         console.error("Failed to load audit log:", e);
         DOM.auditTableBody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center;color:var(--text-muted);">Unable to load audit log</td></tr>`;
@@ -1684,6 +1722,101 @@ async function fetchAuditLogs() {
 function openAuditDocument(auditId) {
     if (!auditId) return;
     window.open(`/api/audit/${encodeURIComponent(auditId)}/document`, "_blank", "noopener,noreferrer");
+}
+
+function setAuditDocEditError(message) {
+    if (!DOM.auditDocEditError) return;
+    if (!message) {
+        DOM.auditDocEditError.textContent = "";
+        DOM.auditDocEditError.classList.add("hidden");
+        return;
+    }
+    DOM.auditDocEditError.textContent = message;
+    DOM.auditDocEditError.classList.remove("hidden");
+}
+
+function openAuditDocumentEdit(auditId, filename) {
+    if (!auditId || !DOM.auditDocEditModal) return;
+    auditDocEditState = { auditId, filename: filename || "" };
+    if (DOM.auditDocEditFilename) DOM.auditDocEditFilename.value = filename || "";
+    if (DOM.auditDocEditFile) DOM.auditDocEditFile.value = "";
+    setAuditDocEditError("");
+    DOM.auditDocEditModal.classList.remove("hidden");
+    if (DOM.auditDocEditFilename) DOM.auditDocEditFilename.focus();
+}
+
+function closeAuditDocumentEdit() {
+    if (!DOM.auditDocEditModal) return;
+    DOM.auditDocEditModal.classList.add("hidden");
+    auditDocEditState = { auditId: null, filename: "" };
+    if (DOM.auditDocEditForm) DOM.auditDocEditForm.reset();
+    setAuditDocEditError("");
+    if (DOM.auditDocEditSave) DOM.auditDocEditSave.disabled = false;
+}
+
+async function saveAuditDocumentEdit(event) {
+    event.preventDefault();
+    const auditId = auditDocEditState.auditId;
+    if (!auditId) return;
+
+    const filename = DOM.auditDocEditFilename ? DOM.auditDocEditFilename.value.trim() : "";
+    const file = DOM.auditDocEditFile && DOM.auditDocEditFile.files[0];
+    if (!filename && !file) {
+        setAuditDocEditError("Enter a filename or choose a replacement file.");
+        return;
+    }
+
+    const formData = new FormData();
+    if (filename) formData.append("filename", filename);
+    if (file) formData.append("file", file);
+
+    if (DOM.auditDocEditSave) DOM.auditDocEditSave.disabled = true;
+    setAuditDocEditError("");
+
+    try {
+        const response = await fetch(`/api/audit/${encodeURIComponent(auditId)}/document`, {
+            method: "PUT",
+            body: formData,
+        });
+        if (handleAuthFailure(response)) return;
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.error) {
+            setAuditDocEditError(data.error || "Unable to save document.");
+            return;
+        }
+        closeAuditDocumentEdit();
+        await fetchAuditLogs();
+    } catch (e) {
+        console.error("Failed to edit audit document:", e);
+        setAuditDocEditError("Unable to save document.");
+    } finally {
+        if (DOM.auditDocEditSave) DOM.auditDocEditSave.disabled = false;
+    }
+}
+
+async function deleteAuditDocument(auditId, filename) {
+    if (!auditId) return;
+    const label = filename ? `"${filename}"` : "this archived document";
+    const confirmed = window.confirm(
+        `Delete ${label} and its audit log entry? This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    try {
+        const response = await fetch(`/api/audit/${encodeURIComponent(auditId)}`, {
+            method: "DELETE",
+        });
+        if (handleAuthFailure(response)) return;
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.error) {
+            window.alert(data.error || "Unable to delete document.");
+            return;
+        }
+        await fetchAuditLogs();
+    } catch (e) {
+        console.error("Failed to delete audit document:", e);
+        window.alert("Unable to delete document.");
+    }
 }
 
 function debounce(func, wait) {

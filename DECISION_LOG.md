@@ -147,3 +147,31 @@ Audit previously stored only metadata (`action`, `report_ref`, `item_count`, JSO
 
 ### Migration
 - `migrations/003_audit_document.sql` (applied to local `listmap` DB on 2026-07-30).
+
+---
+
+## 2026-08-26 — Admin edit/delete for archived audit documents
+
+### Decision
+Admins can **view**, **edit**, and **delete** archived export/print documents from the Audit Log page. Edit replaces or renames the stored file in place. Delete removes the audit log row and its document.
+
+### Why
+Admins could previously only reopen the archived file. They needed a way to correct a bad archive (wrong file / name) and to remove documents that should not stay in history.
+
+### Design
+1. `PUT /api/audit/<id>/document` (admin): rename and/or replace PDF/XLSX/DOCX (same 15 MB + MIME rules as archive).
+2. `DELETE /api/audit/<id>` (admin): delete `audit_log` row after deleting `audit_document` (works even if FK cascade is missing).
+3. Audit Log **Details** column: the document name still **views**; labeled **Edit** and **Delete** buttons sit beside it (not a separate Actions column, which was easy to miss / clip).
+4. Edit uses a nested modal (filename + optional file). Delete uses a confirm dialog.
+5. Replacements record `replaced_by` + `replaced_at` in `audit_log.details` so the mutation is visible in the remaining entry.
+
+### Constraints
+- User role remains 403 on list/view/edit/delete of archived documents.
+- Mutating the audit archive is an explicit product choice; the original export event timestamp is kept.
+
+### QA
+Pass (`python -m pytest` — 44 tests).
+- Admin-only: `app.py:502` PUT document, `app.py:558` DELETE entry; user 403 covered in `tests/test_roles_audit.py`.
+- MIME/size reuse: `app.py:109` `_resolve_document_mime`, `app.py:123` `_validate_document_payload`.
+- UI: Actions column `templates/index.html:420`; edit modal `templates/index.html:432`; handlers `static/js/app.js:1746` / `1765` / `deleteAuditDocument`.
+- Mutation trail: `replaced_by` / `replaced_at` written in `app.py:542`.
