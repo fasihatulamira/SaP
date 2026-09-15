@@ -49,17 +49,15 @@ Save → Render redeploys. On startup the app creates tables automatically (`ens
 **4. Load data (empty tables show blank lists)**
 
 - **Demo data (fast):** Render Shell → `python populate_data.py` → refresh the site.
-- **Copy your local MySQL data** (from this PC, using Aiven as remote):
+- **Copy your local MySQL data into Supabase** (this `supabase` branch):
 
   ```powershell
-  $env:REMOTE_DB_HOST="..."
-  $env:REMOTE_DB_PORT="..."
-  $env:REMOTE_DB_USER="..."
-  $env:REMOTE_DB_PASSWORD="..."
-  $env:REMOTE_DB_NAME="defaultdb"
-  $env:REMOTE_DB_SSL="true"
-  python copy_local_to_remote.py
+  $env:DATABASE_URL="postgresql://..."
+  # Local MySQL source uses DB_HOST / DB_USER / DB_PASSWORD / DB_NAME
+  python copy_local_to_supabase.py
   ```
+
+  For MySQL→Aiven copy on the `main` branch, use that branch’s remote-copy helper if present.
 
 ### Alternative: MySQL as a Render Private Service (paid disk)
 

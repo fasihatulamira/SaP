@@ -1,5 +1,31 @@
 # Decision Log
 
+## 2026-08-26 — Codebase cleanup (supabase branch)
+
+### Decision
+Safe cleanup only: remove dead UI JS for missing DOM, fix Postgres integrity handling, drop unused Docker/MySQL-remote tooling and Playwright `node_modules`, refresh `.env.example` / README for Supabase-first, rewrite `populate_data.py` for Postgres.
+
+### Removed / ignored
+- Dead JS: `doc-date` / `doc-ref` / `doc-page-info` helpers (`estimatePageCount`, `updateDocumentMetadata`, `updateDocDate`)
+- Files: `copy_local_to_remote.py`, `.env.docker`, `Dockerfile`, `docker-compose.yml`, `.dockerignore`, untracked `package.json` / `package-lock.json` / `node_modules/`
+- `.gitignore`: ignore Node tooling + `.pytest_cache/`
+
+### Kept
+- `copy_local_to_supabase.py`, MySQL `schema.sql` / `migrations/` (for MySQL→Supabase copy)
+- Runtime `.env` (gitignored; not rewritten)
+
+### QA
+Pass (`python -m pytest` — 45 tests).
+
+---
+
+## 2026-08-26 — Hide landused ID on Add Record form
+
+### Decision
+Landused **Add** form only asks for Category; `landused_id` is auto-assigned by the DB. Catalog ID remains available (read-only) on Edit.
+
+---
+
 ## 2026-08-26 — Hide landused ID in selection table
 
 ### Decision

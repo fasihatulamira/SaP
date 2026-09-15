@@ -86,7 +86,6 @@ const DOM = {
     sjunguPageInfo: document.getElementById("sjungu-page-info"),
     sjunguSelectAll: document.getElementById("sjungu-select-all"),
     docContent: document.getElementById("doc-content"),
-    docDate: document.getElementById("doc-date"),
     btnPrint: document.getElementById("btn-print"),
     btnPdf: document.getElementById("btn-pdf"),
     btnXlsx: document.getElementById("btn-xlsx"),
@@ -95,8 +94,6 @@ const DOM = {
     btnClearSelection: document.getElementById("btn-clear-selection"),
     docTitleInput: document.getElementById("doc-title-input"),
     statusBanner: document.getElementById("status-banner"),
-    docRef: document.getElementById("doc-ref"),
-    docPageInfo: document.getElementById("doc-page-info"),
     auditModal: document.getElementById("audit-modal"),
     auditModalBackdrop: document.getElementById("audit-modal-backdrop"),
     auditModalClose: document.getElementById("audit-modal-close"),
@@ -449,7 +446,6 @@ document.addEventListener("DOMContentLoaded", () => {
     fetchFilters();
     fetchCategoryRecords("topography");
     setupEventListeners();
-    updateDocDate();
     renderDocumentPreview();
 });
 
@@ -719,10 +715,6 @@ async function buildPreviewPdfBlob(filename) {
 
     try {
         const pdf = await html2pdf().set(opt).from(element).toPdf().get("pdf");
-        const totalPages = pdf.internal.getNumberOfPages();
-        if (DOM.docPageInfo) {
-            DOM.docPageInfo.textContent = `Page 1 of ${totalPages}`;
-        }
         return { pdf, blob: pdf.output("blob") };
     } finally {
         setPdfCaptureMode(false);
@@ -928,31 +920,11 @@ function generateReportRef() {
     return `LM-${year}-${stamp}${suffix}`;
 }
 
-function estimatePageCount(selectedTopo, selectedDted, selectedLand, selectedSjungu) {
-    const rowCount = selectedTopo.length + selectedSjungu.length + selectedLand.length + selectedDted.length;
-    const sectionCount = [
-        selectedTopo.length + selectedSjungu.length,
-        selectedLand.length,
-        selectedDted.length
-    ].filter((n) => n > 0).length;
-
-    const totalRows = rowCount + sectionCount;
-    const rowsPerPage = 22;
-    return Math.max(1, Math.ceil(totalRows / rowsPerPage));
-}
-
-function updateDocumentMetadata(selectedTopo, selectedDted, selectedLand, selectedSjungu) {
+function ensureReportRef() {
     if (!state.reportRef) {
         state.reportRef = generateReportRef();
         saveSelectionsToSession();
         recordAudit("create_report");
-    }
-    if (DOM.docRef) {
-        DOM.docRef.textContent = state.reportRef;
-    }
-    if (DOM.docPageInfo) {
-        const totalPages = estimatePageCount(selectedTopo, selectedDted, selectedLand, selectedSjungu);
-        DOM.docPageInfo.textContent = `Page 1 of ${totalPages}`;
     }
 }
 
@@ -983,12 +955,10 @@ function renderDocumentPreview() {
         DOM.btnPdf.disabled = true;
         if (DOM.btnXlsx) DOM.btnXlsx.disabled = true;
         if (DOM.btnDocx) DOM.btnDocx.disabled = true;
-        if (DOM.docRef) DOM.docRef.textContent = "—";
-        if (DOM.docPageInfo) DOM.docPageInfo.textContent = "Page 1 of 1";
         return;
     }
 
-    updateDocumentMetadata(selectedTopo, selectedDted, selectedLand, selectedSjungu);
+    ensureReportRef();
 
     DOM.btnClearSelection.disabled = false;
     DOM.btnPrint.disabled = false;
@@ -1830,11 +1800,4 @@ function debounce(func, wait) {
         clearTimeout(timeout);
         timeout = setTimeout(later, wait);
     };
-}
-
-function updateDocDate() {
-    if (!DOM.docDate) return;
-    const today = new Date();
-    const options = { year: "numeric", month: "long", day: "numeric" };
-    DOM.docDate.textContent = today.toLocaleDateString("en-US", options);
 }

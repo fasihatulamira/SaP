@@ -1,11 +1,14 @@
-"""Seed LISTMAP tables when empty. Safe to re-run (skips non-empty tables)."""
-import os
+"""Seed LISTMAP tables when empty. Safe to re-run (skips non-empty tables).
+
+Uses the configured PostgreSQL / Supabase connection from DATABASE_URL or DB_*.
+"""
 import sys
 
-import mysql.connector
 from dotenv import load_dotenv
 
 load_dotenv()
+
+import database  # noqa: E402  — after dotenv
 
 LANDUSE_SEED_DATA = [
     (1, "HUTAN"),
@@ -50,30 +53,15 @@ SJUNG_SEED_DATA = [
 ]
 
 
-def _connect():
-    cfg = {
-        "host": os.getenv("DB_HOST", "localhost"),
-        "port": int(os.getenv("DB_PORT", "3306")),
-        "user": os.getenv("DB_USER"),
-        "password": os.getenv("DB_PASSWORD"),
-        "database": os.getenv("DB_NAME"),
-    }
-    if not cfg["user"] or cfg["password"] is None or not cfg["database"]:
-        raise SystemExit("Set DB_HOST, DB_USER, DB_PASSWORD, and DB_NAME.")
-    if os.getenv("DB_SSL", "").lower() in ("true", "1", "t", "y", "yes"):
-        cfg["ssl_disabled"] = False
-    return mysql.connector.connect(**cfg)
-
-
 def _count(cursor, table):
     cursor.execute(f"SELECT COUNT(*) FROM {table}")
-    return cursor.fetchone()[0]
+    row = cursor.fetchone()
+    return row[0] if row else 0
 
 
 def populate_database():
-    conn = _connect()
-    cursor = conn.cursor()
-    try:
+    database.ensure_core_tables()
+    with database.get_db_cursor(commit=True) as cursor:
         if _count(cursor, "landused") == 0:
             cursor.executemany(
                 "INSERT INTO landused (landused_id, category) VALUES (%s, %s)",
@@ -85,7 +73,7 @@ def populate_database():
 
         if _count(cursor, "topography") == 0:
             cursor.executemany(
-                "INSERT INTO topography (sheetNum, sheetName, sheetScale, release_year) "
+                'INSERT INTO topography ("sheetNum", "sheetName", "sheetScale", release_year) '
                 "VALUES (%s, %s, %s, %s)",
                 TOPOGRAPHY_SEED_DATA,
             )
@@ -104,18 +92,14 @@ def populate_database():
 
         if _count(cursor, "sjung") == 0:
             cursor.executemany(
-                "INSERT INTO sjung (sheetNum, sheetName, sheetScale) VALUES (%s, %s, %s)",
+                'INSERT INTO sjung ("sheetNum", "sheetName", "sheetScale") VALUES (%s, %s, %s)',
                 SJUNG_SEED_DATA,
             )
             print(f"Inserted {len(SJUNG_SEED_DATA)} sjung rows.")
         else:
             print("sjung already has data — skip.")
 
-        conn.commit()
-        print("Seed complete.")
-    finally:
-        cursor.close()
-        conn.close()
+    print("Seed complete.")
 
 
 if __name__ == "__main__":
