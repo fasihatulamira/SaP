@@ -1,5 +1,18 @@
 # Decision Log
 
+## 2026-08-26 — Remove Lark + MySQL schema from supabase branch
+
+### Decision
+Delete committed non-app assets from `supabase`: `.lark-docs/`, `.lark-slides/`, MySQL `schema.sql`, and `migrations/`.
+
+### Why
+Not used by the Flask/Supabase runtime. Postgres schema lives in `schema_postgres.sql` and `supabase/migrations/`. Data copy still uses live MySQL via `copy_local_to_supabase.py`.
+
+### Kept
+App code, tests, Supabase schema, `DEPLOYMENT.md`, `.cursor/`
+
+---
+
 ## 2026-08-26 — Codebase cleanup (supabase branch)
 
 ### Decision
@@ -11,7 +24,7 @@ Safe cleanup only: remove dead UI JS for missing DOM, fix Postgres integrity han
 - `.gitignore`: ignore Node tooling + `.pytest_cache/`
 
 ### Kept
-- `copy_local_to_supabase.py`, MySQL `schema.sql` / `migrations/` (for MySQL→Supabase copy)
+- `copy_local_to_supabase.py` (reads live MySQL; does not need `schema.sql` in-repo)
 - Runtime `.env` (gitignored; not rewritten)
 
 ### QA

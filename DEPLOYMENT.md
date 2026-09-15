@@ -84,7 +84,7 @@ No template required:
 - [ ] Set `FLASK_DEBUG=False`
 - [ ] Set a strong `SECRET_KEY` (32+ random characters)
 - [ ] Set a strong `AUTH_PASSWORD`
-- [ ] Run database schema: `mysql -u root -p < schema.sql` (or `python init_schema.py`)
+- [ ] Run database schema: `python init_schema.py` (Postgres / Supabase; see `schema_postgres.sql`)
 - [ ] Install dependencies: `pip install -r requirements.txt`
 
 ## Run with Waitress (recommended)
